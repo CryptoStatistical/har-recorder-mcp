@@ -1,0 +1,6 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Recorded sessions contain LIVE cookies and session tokens — never commit them.
+.recording/

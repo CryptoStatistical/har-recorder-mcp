@@ -1,0 +1,38 @@
+{
+  "name": "har-recorder-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that records real, user-driven browser sessions into complete HAR files (http-only cookies, response bodies and service-worker traffic included).",
+  "type": "module",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "bin": {
+    "har-recorder-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "BLUEPRINT.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -w -p tsconfig.json",
+    "start": "node dist/index.js",
+    "test": "node test/smoke.mjs",
+    "test:e2e": "node test/e2e.mjs",
+    "install:browser": "playwright install chromium"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "archiver": "^7.0.1",
+    "playwright": "^1.48.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/archiver": "^6.0.2",
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.0"
+  }
+}
