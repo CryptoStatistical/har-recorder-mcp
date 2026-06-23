@@ -3,7 +3,7 @@
 Server MCP che permette a Claude di **registrare sessioni di navigazione reali**
 (guidate dall'utente, login compresi) e produrre HAR **completi** — cookie
 http-only inclusi, header request/response, post-data e body delle risposte,
-**traffico di pagine, iframe, worker e service worker**.
+**traffico di pagine, iframe, worker, service worker e frame WebSocket**.
 
 Risolve i limiti tipici degli HAR exporter esistenti: cookie http-only mancanti,
 recording che non parte, fetch dei service worker assenti. La cattura avviene via
@@ -52,6 +52,16 @@ già usando**, purché avviato col debugging:
 
 Poi `start_recording({ attachToPort: 9222 })`: registra senza lanciare nulla;
 `close_browser` si limita a disconnettersi (non chiude il browser dell'utente).
+
+## Uso semplice (linguaggio naturale)
+
+Le descrizioni dei tool sono in inglese e ottimizzate per il triggering, così
+basta un prompt naturale — anche in italiano — per attivarli:
+
+- _"registra una sessione e cattura il traffico verso fineco.it"_ → `start_recording`
+- _"fermati e salva l'HAR"_ → `stop_recording`
+- _"mostra le richieste POST verso /api"_ → `list_requests`
+- _"dammi i cookie http-only"_ → `get_cookies`
 
 ## Flusso d'uso
 
@@ -106,5 +116,5 @@ Non condividere gli zip. Usa `profile: "fresh"` per catture isolate.
 npm run build       # compila TypeScript → dist/
 npm run dev         # watch mode
 npm test            # smoke test del server MCP (no browser)
-npm run test:e2e    # e2e headless: verifica cattura cookie http-only
+npm run test:e2e    # e2e headless: cookie http-only + service worker + frame WebSocket
 ```

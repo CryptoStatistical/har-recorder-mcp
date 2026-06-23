@@ -124,7 +124,7 @@ src/
 └── manager.ts    # RecordingManager: lifecycle Playwright + orchestrazione
 test/
 ├── smoke.mjs     # boot del server, superficie dei 10 tool (no browser)
-└── e2e.mjs       # http-only + SERVICE WORKER end-to-end (headless, server locale)
+└── e2e.mjs       # http-only + SERVICE WORKER + WEBSOCKET end-to-end (headless, server locale)
 ```
 
 ## 9. Sicurezza
@@ -136,8 +136,11 @@ test/
 
 ## 10. Limitazioni note / roadmap
 
-- **WebSocket**: handshake catturato; i frame dei messaggi non sono ancora
-  serializzati (servirebbe `Network.webSocketFrame*`).
+- **WebSocket**: handshake **e** frame dei messaggi catturati via
+  `Network.webSocketFrame*`, salvati per entry in `_webSocketMessages`
+  (convenzione Chrome DevTools). Cap a `MAX_WS_FRAMES` (5000) e
+  `MAX_WS_FRAME_BYTES` (64 KB per frame); l'eccesso è marcato
+  `_webSocketMessagesTruncated`.
 - **Una sessione browser viva alla volta** (il profilo persistente ha un lock
   singolo). `start` chiude un eventuale browser rimasto aperto da uno stop.
 - **Conteggio byte SW duplicato (lieve)**: se un SW emette `dataReceived` su due

@@ -218,6 +218,9 @@ export function buildSummaryMarkdown(har: Har, meta: RecordingMetadata, cookies:
     cookieDomains.set(d, (cookieDomains.get(d) ?? 0) + 1);
   }
 
+  const webSockets = entries.filter((e: HarEntry) => e._webSocketMessages);
+  const wsFrameTotal = webSockets.reduce((n, e) => n + (e._webSocketMessages?.length ?? 0), 0);
+
   const lines: string[] = [];
   lines.push(`# Recording — ${meta.title ?? meta.host ?? meta.url}`);
   lines.push("");
@@ -263,6 +266,19 @@ export function buildSummaryMarkdown(har: Har, meta: RecordingMetadata, cookies:
     }
   }
   lines.push("");
+
+  if (webSockets.length) {
+    lines.push("## WebSocket");
+    lines.push("");
+    lines.push(`- **Connessioni**: ${webSockets.length} · **frame catturati**: ${wsFrameTotal}`);
+    for (const e of webSockets.slice(0, 20)) {
+      const idx = entries.indexOf(e);
+      lines.push(`- #${idx} \`${e.request.url}\` — ${e._webSocketMessages?.length ?? 0} frame`);
+    }
+    lines.push("");
+    lines.push("I frame sono salvati per ciascuna entry sotto `_webSocketMessages` (convenzione Chrome DevTools).");
+    lines.push("");
+  }
 
   lines.push("## Cookie");
   lines.push("");

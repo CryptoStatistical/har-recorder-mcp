@@ -30,7 +30,7 @@ export class RawCdp {
     this.ws.onmessage = (ev: MessageEvent) => this.dispatch(String(ev.data));
     this.ws.onclose = () => {
       this.closed = true;
-      for (const { reject } of this.pending.values()) reject(new Error("CDP connection chiusa"));
+      for (const { reject } of this.pending.values()) reject(new Error("Connessione CDP chiusa"));
       this.pending.clear();
     };
   }
