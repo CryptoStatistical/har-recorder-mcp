@@ -9,7 +9,7 @@ export function slug(input: string, maxLen = 40): string {
   return s.slice(0, maxLen).replace(/-+$/g, "");
 }
 
-/** A host like "www.fineco.it" → "fineco-it" (drops a leading www). */
+/** A host like "www.example.com" -> "example-com" (drops a leading www). */
 export function hostSlug(host: string): string {
   return slug(host.replace(/^www\./, ""));
 }
@@ -33,7 +33,7 @@ export interface NameParts {
 
 /**
  * Build a descriptive recording directory name, e.g.
- *   2026-06-22_143052__fineco-it__login__dashboard
+ *   2026-06-22_143052__example-com__login__dashboard
  * Order: timestamp · host · label/checkpoints · last page title.
  */
 export function deriveRecordingName(parts: NameParts): string {

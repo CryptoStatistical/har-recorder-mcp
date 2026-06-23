@@ -18,6 +18,7 @@ const expected = [
   "list_recordings",
   "list_requests",
   "mark_checkpoint",
+  "rename_recording",
   "start_recording",
   "stop_recording",
 ].sort();
@@ -28,8 +29,8 @@ const assert = (cond, msg) => {
   if (!cond) failures++;
 };
 
-assert(tools.length === 10, `10 tool esposti (trovati ${tools.length})`);
-assert(JSON.stringify(names) === JSON.stringify(expected), "i 10 tool attesi sono tutti presenti");
+assert(tools.length === 11, `11 tool esposti (trovati ${tools.length})`);
+assert(JSON.stringify(names) === JSON.stringify(expected), "gli 11 tool attesi sono tutti presenti");
 
 const list = await client.callTool({ name: "list_recordings", arguments: {} });
 assert(!list.isError, "list_recordings risponde senza errore");

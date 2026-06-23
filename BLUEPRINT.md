@@ -100,20 +100,21 @@ primo redirect di login non si perde.
 ## 7. Naming, stop, query
 
 - **Naming** (`src/naming.ts`): `<ts>__<host>__<label/checkpoint…>__<titolo>`,
-  es. `2026-06-22_143052__fineco-it__login__dashboard`.
+  es. `2026-06-22_143052__example-com__login__dashboard`.
 - **Stop**: `Network.getAllCookies` (jar completo http-only) → `buildHar` (HAR 1.2,
   timings CDP→HAR) → naming (titoli letti live da Playwright) → `summary.md` →
   `writeArtifacts` (har/.gz/.zip/metadata/cookies) → `index.json`. Il browser
   resta aperto.
 - **Query** (`list_requests`/`get_request`/`get_cookies`): operano su un HAR
-  costruito (snapshot live se attivo, altrimenti riletto da disco) — Claude
-  ispeziona migliaia di richieste senza versare l'HAR nel contesto.
+  costruito (snapshot live se attivo, altrimenti riletto da disco) — Codex,
+  Claude o qualunque altro client MCP ispeziona migliaia di richieste senza
+  versare l'HAR nel contesto.
 
 ## 8. Struttura del codice
 
 ```
 src/
-├── index.ts      # entry MCP: registra i 10 tool (stdio)
+├── index.ts      # entry MCP: registra istruzioni server + 11 tool (stdio)
 ├── config.ts     # root, path .recording/, profilo, limiti
 ├── log.ts        # log su stderr (stdout riservato a JSON-RPC)
 ├── cdp.ts        # RawCdp (WebSocket flatten) + CdpCaptureCoordinator (auto-attach)
@@ -123,7 +124,7 @@ src/
 ├── storage.ts    # index.json, packaging (gz/zip), metadata, summary.md
 └── manager.ts    # RecordingManager: lifecycle Playwright + orchestrazione
 test/
-├── smoke.mjs     # boot del server, superficie dei 10 tool (no browser)
+├── smoke.mjs     # boot del server, superficie degli 11 tool (no browser)
 └── e2e.mjs       # http-only + SERVICE WORKER + WEBSOCKET end-to-end (headless, server locale)
 ```
 

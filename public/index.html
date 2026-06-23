@@ -61,7 +61,8 @@
           <div class="dh-right">
             <div id="d-badges" class="d-badges"></div>
             <div class="dh-actions">
-              <button id="d-claude" class="btn primary sm" hidden>Send to Claude</button>
+              <button id="d-rename" class="btn ghost sm">Rename</button>
+              <button id="d-claude" class="btn primary sm" hidden>Send to Claude or Codex</button>
               <button id="d-delete" class="btn danger-ghost sm" hidden>Delete from disk</button>
             </div>
           </div>
@@ -149,7 +150,7 @@
           </label>
           <label class="field">
             <span>Label <em>(optional)</em></span>
-            <input id="m-label" type="text" placeholder="e.g. fineco login" autocomplete="off" />
+            <input id="m-label" type="text" placeholder="e.g. login" autocomplete="off" />
           </label>
           <div class="field-row">
             <label class="field">
@@ -186,16 +187,16 @@
       </form>
     </div>
 
-    <!-- send to Claude modal -->
+    <!-- handoff modal -->
     <div id="claude-modal" class="modal" hidden>
       <div class="modal-backdrop" data-claude-close></div>
       <div class="modal-card">
         <header class="modal-head">
-          <h2>Send to Claude</h2>
+          <h2>Send to Claude or Codex</h2>
           <button type="button" class="icon-btn" data-claude-close aria-label="Close">Close</button>
         </header>
         <div class="modal-body">
-          <p class="hint">Paste this into the Claude conversation that opened the MCP, to continue the analysis.</p>
+          <p class="hint">Paste this into a Codex or Claude conversation with the MCP available, to continue the analysis.</p>
           <textarea id="claude-prompt" class="prompt-box" readonly rows="9"></textarea>
           <div class="claude-actions">
             <button type="button" id="claude-copy" class="btn primary sm">Copy prompt</button>

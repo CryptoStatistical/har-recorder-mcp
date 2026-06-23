@@ -30,7 +30,18 @@ async function run(fn: () => Promise<unknown>): Promise<ToolResult> {
   }
 }
 
-const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
+const MCP_INSTRUCTIONS = [
+  "Use har-recorder to capture real user-driven browser traffic as complete HAR files.",
+  "Start with start_recording, let the user browse/login in Chrome, then always run stop_recording before close_browser so the HAR is assembled.",
+  "Use list_requests before get_request to avoid dumping large HARs into context. WebSocket frames are stored in _webSocketMessages; cookies include http-only values.",
+].join(" ");
+
+const server = new McpServer(
+  { name: SERVER_NAME, version: SERVER_VERSION },
+  {
+    instructions: MCP_INSTRUCTIONS,
+  },
+);
 
 server.registerTool(
   "start_recording",
@@ -40,7 +51,7 @@ server.registerTool(
       "Start recording a browsing session and capture ALL network traffic to/from a website as a HAR. Use this whenever the user wants to record a session, capture traffic/requests for a site, sniff/inspect API calls, or grab a HAR or cookies for a site. Opens Chrome (headful) and captures via browser-level CDP: pages, iframes, workers and service workers, including http-only cookies and WebSocket frames. The user navigates and logs in manually. With attachToPort it connects to an already-running Chrome (started with --remote-debugging-port) instead of launching a new one. Returns a recordingId.",
     inputSchema: {
       url: z.string().optional().describe("Initial URL / site to open and capture traffic for (optional: without it, starts blank and captures whatever the user navigates to)."),
-      label: z.string().optional().describe("Short label (e.g. 'fineco login') also used in the recording name."),
+      label: z.string().optional().describe("Short label (e.g. 'login') also used in the recording name."),
       profile: z.enum(["persistent", "fresh"]).optional().describe("persistent (default) keeps logins across sessions | fresh starts clean and isolated. Ignored in attach mode."),
       captureBodies: z.boolean().optional().describe("Capture response bodies (default true)."),
       channel: z.string().optional().describe("Playwright browser channel, e.g. 'chrome' | 'msedge'. Default: try chrome then chromium."),
@@ -172,6 +183,20 @@ server.registerTool(
 );
 
 server.registerTool(
+  "rename_recording",
+  {
+    title: "Rename recording",
+    description:
+      "Rename a live or saved recording for easier identification in the dashboard, index, metadata and summary. This changes the display title/label, not the artifact directory name.",
+    inputSchema: {
+      recordingId: z.string(),
+      name: z.string().min(1).max(120).describe("New display name for the recording."),
+    },
+  },
+  async (args) => run(() => manager.renameRecording(args.recordingId, args.name)),
+);
+
+server.registerTool(
   "close_browser",
   {
     title: "Close browser",
@@ -184,10 +209,10 @@ server.registerTool(
 );
 
 // ---------------------------------------------------------------------------
-// Prompts = an interactive menu of the recommended workflow. MCP clients (Claude
-// Code / Desktop) render these as selectable items, so the user gets a guided
-// menu instead of having to remember the tool sequence. The body steers Claude
-// through the tools.
+// Prompts = an interactive menu of the recommended workflow. MCP clients that
+// support prompts render these as selectable items, so the user gets a guided
+// menu instead of having to remember the tool sequence. The body steers the
+// agent through the tools.
 // ---------------------------------------------------------------------------
 
 const userMsg = (text: string) => ({

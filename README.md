@@ -1,6 +1,6 @@
 # HAR Recorder MCP
 
-MCP server that lets Claude **record real, user-driven browsing sessions**
+MCP server that lets Codex, Claude, and other MCP clients **record real, user-driven browsing sessions**
 (logins included) and produce **complete** HAR files — http-only cookies
 included, request/response headers, post-data and response bodies,
 **traffic from pages, iframes, workers, service workers and WebSocket frames**.
@@ -13,6 +13,8 @@ See [`BLUEPRINT.md`](./BLUEPRINT.md).
 ## Quickstart
 
 ```bash
+git clone https://github.com/CryptoStatistical/har-recorder-mcp.git
+cd har-recorder-mcp
 npm install
 npm run build
 ```
@@ -24,11 +26,67 @@ falls back to Playwright's Chromium. To force/install the latter:
 npm run install:browser   # playwright install chromium
 ```
 
+Run the local dashboard without MCP:
+
+```bash
+npm run ui
+# opens http://127.0.0.1:4477
+```
+
 ## Install as an MCP server
 
 Register the built server (`dist/index.js`) with your MCP client. Use an
 **absolute path** for both `node` and the script — MCP clients often launch with a
 minimal environment. Find your node path with `which node` (e.g. `/opt/homebrew/bin/node`).
+
+### Codex CLI / IDE extension
+
+Codex supports local stdio MCP servers. The CLI and IDE extension read MCP
+configuration from `~/.codex/config.toml`; trusted projects can also use a
+project-local `.codex/config.toml`.
+
+Install from a fresh clone:
+
+```bash
+git clone https://github.com/CryptoStatistical/har-recorder-mcp.git
+cd har-recorder-mcp
+npm install
+npm run build
+NODE_BIN="$(which node)"
+RECORDER_DIR="$(pwd)"
+codex mcp add har-recorder --env HAR_RECORDER_ROOT="$RECORDER_DIR" -- "$NODE_BIN" "$RECORDER_DIR/dist/index.js"
+```
+
+Verify inside Codex:
+
+```bash
+codex mcp --help
+# then, in the Codex TUI:
+# /mcp
+```
+
+Manual `config.toml` alternative:
+
+```toml
+[mcp_servers.har-recorder]
+command = "/opt/homebrew/bin/node"
+args = ["/absolute/path/to/har-recorder-mcp/dist/index.js"]
+startup_timeout_sec = 20
+tool_timeout_sec = 300
+
+[mcp_servers.har-recorder.env]
+HAR_RECORDER_ROOT = "/absolute/path/to/har-recorder-mcp"
+PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+```
+
+Notes for Codex:
+
+- Restart Codex or open a new session after adding the MCP server.
+- Use `/mcp` in the Codex TUI to confirm `har-recorder` is connected.
+- `HAR_RECORDER_ROOT` decides where `.recording/` is created. Pin it to the
+  cloned repo or to another private recordings directory.
+- The server advertises MCP `instructions`, so Codex knows the safe workflow:
+  `start_recording` → browse/login → `stop_recording` before `close_browser`.
 
 ### Claude Code (CLI)
 
@@ -84,16 +142,18 @@ anything; `close_browser` only disconnects (it does not close the user's browser
 Tool descriptions are in English and tuned for triggering, so a plain
 natural-language prompt — in any language — is enough to invoke them:
 
-- _"record a session and capture the traffic to fineco.it"_ → `start_recording`
+- _"record a session and capture the login traffic"_ → `start_recording`
 - _"stop and save the HAR"_ → `stop_recording`
 - _"show the POST requests to /api"_ → `list_requests`
 - _"give me the http-only cookies"_ → `get_cookies`
 
 ## Prompt menu (guided steps)
 
-Besides the tools, the server exposes **MCP prompts** that show up as a selectable
-menu in the client (Claude Code / Desktop) — a guided workflow you can click
-through instead of remembering the tool order:
+Besides the tools, the server exposes **MCP prompts** for clients that render
+them as a selectable menu (for example Claude Code / Desktop) — a guided
+workflow you can click through instead of remembering the tool order. Codex also
+reads the server-level MCP `instructions`, so the same workflow is available
+through natural language.
 
 | Prompt | What it does |
 |--------|--------------|
@@ -109,14 +169,14 @@ through instead of remembering the tool order:
 
 ## Workflow
 
-1. Claude → `start_recording(url, label?)` → Chrome opens (headful), capture
+1. Agent → `start_recording(url, label?)` → Chrome opens (headful), capture
    starts in the background, returns a `recordingId`.
-2. **You** navigate and log in inside the browser. (Claude may ask whether a login
+2. **You** navigate and log in inside the browser. (The agent may ask whether a login
    is needed, persistent vs clean profile, whether to capture bodies.)
 3. (optional) `mark_checkpoint("login done")` to segment and improve the name.
-4. Claude → `stop_recording(recordingId)` → assembles the HAR, names it from
+4. Agent → `stop_recording(recordingId)` → assembles the HAR, names it from
    titles/host/checkpoints, creates the `.zip` and the `summary.md`.
-5. Claude can query the capture with `list_requests` / `get_request` /
+5. Codex and Claude can query the capture with `list_requests` / `get_request` /
    `get_cookies` without dumping the whole HAR into context.
 
 ## Output
@@ -124,7 +184,7 @@ through instead of remembering the tool order:
 ```
 .recording/
 ├── index.json
-├── 2026-06-22_143052__fineco-it__login__dashboard/
+├── 2026-06-22_143052__example-com__login__dashboard/
 │   ├── session.har          # complete HAR (http-only included)
 │   ├── session.har.gz
 │   ├── 2026-06-22_..._dashboard.zip   # deliverable package (split into .zip.001… if >20 MB)
@@ -168,6 +228,7 @@ Windows (PowerShell): `cmd /c copy /b <name>.zip.001+<name>.zip.002 <name>.zip`.
 | `get_request` | Full HAR entry for a request (WebSocket frames in `_webSocketMessages`). `{ recordingId, index? \| requestId? \| urlContains? }` |
 | `get_cookies` | Cookie jar (http-only included), filterable by domain. `{ recordingId, domain? }` |
 | `annotate_recording` | Adds a note (to metadata + summary). `{ recordingId, note }` |
+| `rename_recording` | Changes the display title/label without moving artifact files. `{ recordingId, name }` |
 | `close_browser` | Closes Chrome (and cleans up the `fresh` profile). `{ recordingId? }` |
 
 ## Web dashboard
@@ -187,6 +248,10 @@ npm run ui          # serves http://127.0.0.1:4477 and opens it in your browser
   and capture begins.
 - **Live bar** — while a recording is active: live duration & request count, plus
   Checkpoint and Stop & save (assembles the HAR).
+- **Rename** — change the display title/label for a live or saved recording
+  without moving the artifact directory.
+- **Delete from disk** — removes a saved recording and clears the detail view so
+  stale request/cookie data is not left on screen.
 
 **Inspect** (live *or* on-disk)
 
@@ -205,9 +270,10 @@ npm run ui          # serves http://127.0.0.1:4477 and opens it in your browser
 
 - **Download** — grab the whole file (single `.zip` or `session.har`) to your
   machine from the Overview tab.
-- **Send to Claude** — copies a continuation prompt to paste into the Claude
-  conversation that opened the MCP. For large recordings it also lists the split
-  parts (≤20 MB each) to attach, with the rejoin command.
+- **Send to Claude or Codex** — copies a continuation prompt for another MCP
+  conversation. Codex users can use the saved path from Overview and inspect
+  with `list_requests`, `get_request`, and `get_cookies`. For large recordings
+  the UI also lists the split parts (≤20 MB each), with the rejoin command.
 
 > The dashboard is a **separate process** from the MCP server, so it owns its own
 > recording engine: it fully controls the sessions **it** launches; sessions

@@ -570,6 +570,35 @@ export class RecordingManager {
     return { recordingId: id, note, applied: "disk", notes: meta.notes };
   }
 
+  async renameRecording(id: string, name: string): Promise<{ recordingId: string; name: string; applied: "live" | "disk" }> {
+    const clean = name.trim();
+    if (!clean) throw new Error("Name is required.");
+    if (clean.length > 120) throw new Error("Name is too long (max 120 characters).");
+
+    if (this.session && this.session.id === id && this.session.status === "recording") {
+      this.session.label = clean;
+      await upsertIndex({ ...this.indexEntryFor(this.session, this.session.store.requestCount), label: clean, title: clean });
+      return { recordingId: id, name: clean, applied: "live" };
+    }
+
+    const idx = await findIndexEntry(id);
+    if (!idx) throw new Error(`Recording not found: ${id}`);
+    const meta = await readMetadata(idx.dir);
+    if (!meta) throw new Error(`metadata.json missing for ${id}.`);
+    meta.label = clean;
+    meta.title = clean;
+    await writeMetadata(idx.dir, meta);
+    try {
+      const har = await readHar(idx.dir);
+      const cookies = await readCookies(idx.dir);
+      await writeSummary(idx.dir, buildSummaryMarkdown(har, meta, cookies));
+    } catch (err) {
+      logError("summary regen failed", err);
+    }
+    await upsertIndex({ ...idx, label: clean, title: clean });
+    return { recordingId: idx.id, name: clean, applied: "disk" };
+  }
+
   /**
    * Permanently delete a recording from disk (and the index). Refuses while it
    * is still recording; if it is the in-memory (stopped) session, the browser is

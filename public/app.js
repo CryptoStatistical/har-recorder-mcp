@@ -115,9 +115,11 @@ function renderRecordings() {
       dataset: { id: r.recordingId },
       onclick: () => selectRecording(r.recordingId),
     }, [
-      live
-        ? el("span", { class: "ri-live" }, [el("span", { class: "live-pulse" }), "REC"])
-        : el("button", { class: "ri-del", title: "Delete from disk", text: "Delete", onclick: (e) => { e.stopPropagation(); deleteRecording(r.recordingId, niceName); } }),
+      live ? el("span", { class: "ri-live" }, [el("span", { class: "live-pulse" }), "REC"]) : null,
+      el("div", { class: "ri-actions" }, [
+        el("button", { class: "ri-mini", title: "Rename", text: "Rename", onclick: (e) => { e.stopPropagation(); renameRecording(r.recordingId, niceName); } }),
+        live ? null : el("button", { class: "ri-mini danger", title: "Delete from disk", text: "Delete", onclick: (e) => { e.stopPropagation(); deleteRecording(r.recordingId, niceName); } }),
+      ]),
       el("div", { class: "ri-title", text: niceName }),
       el("div", { class: "ri-sub", text: (r.host || hostOf(r.url) || "—") + " · " + fmtDate(r.startedAt) }),
       el("div", { class: "ri-stats" }, [
@@ -134,6 +136,27 @@ function renderRecordings() {
 // selection + overview (handles both on-disk metadata and live status shapes)
 // ===========================================================================
 function metaId(m) { return m.id || m.recordingId; }
+function isSelectedRecording(id) { return state.selected === id || (state.meta && metaId(state.meta) === id); }
+
+function clearSelectedRecordingView() {
+  state.selected = null;
+  state.meta = null;
+  state.loaded = {};
+  $("#detail").hidden = true;
+  $("#empty").hidden = false;
+  $("#drawer").hidden = true;
+  $("#d-title").textContent = "";
+  $("#d-meta").textContent = "";
+  $("#d-badges").innerHTML = "";
+  $("#req-count").textContent = "";
+  $("#cookie-count").textContent = "";
+  $("#summary-pre").textContent = "";
+  $("#req-body").innerHTML = "";
+  $("#cookie-body").innerHTML = "";
+  $('.panel[data-panel="overview"]').innerHTML = "";
+  clearRequestFilters();
+  activateTab("overview");
+}
 
 async function selectRecording(id) {
   state.selected = id;
@@ -241,7 +264,7 @@ async function loadFiles(id, box) {
       ]));
     }
     if (data.files.some((f) => f.kind === "part")) {
-      box.appendChild(el("p", { class: "hint", text: "Split parts (≤20 MB each) are meant for uploading to Claude; rejoin them before opening the HAR. Use \"Send to Claude\" for the ready prompt." }));
+      box.appendChild(el("p", { class: "hint", text: "Split parts (≤20 MB each) are meant for upload-capped MCP clients; rejoin them before opening the HAR. Use \"Send to Claude or Codex\" for the ready prompt." }));
     }
   } catch (err) {
     box.textContent = "";
@@ -526,13 +549,22 @@ async function deleteRecording(id, name) {
   try {
     await postJSON("/api/recordings/" + encodeURIComponent(id) + "/delete", {});
     toast("Recording deleted.", "ok");
-    if (state.selected === id) {
-      state.selected = null;
-      state.meta = null;
-      $("#detail").hidden = true;
-      $("#empty").hidden = false;
-    }
+    if (isSelectedRecording(id)) clearSelectedRecordingView();
     await loadRecordings();
+  } catch (e) {
+    toast(e.message, "err");
+  }
+}
+async function renameRecording(id, currentName) {
+  const next = prompt("New recording name:", currentName || "");
+  if (next == null) return;
+  const name = next.trim();
+  if (!name) return toast("Name is required.", "err");
+  try {
+    const result = await postJSON("/api/recordings/" + encodeURIComponent(id) + "/rename", { name });
+    toast("Renamed: " + result.name, "ok");
+    await loadRecordings();
+    if (state.selected === id) await selectRecording(id);
   } catch (e) {
     toast(e.message, "err");
   }
@@ -541,9 +573,13 @@ $("#d-delete").addEventListener("click", () => {
   if (!state.selected || (state.meta && state.meta.live)) return;
   deleteRecording(state.selected, state.meta ? (state.meta.title || state.meta.label || state.meta.host || metaId(state.meta)) : state.selected);
 });
+$("#d-rename").addEventListener("click", () => {
+  if (!state.selected || !state.meta) return;
+  renameRecording(state.selected, state.meta.title || state.meta.label || state.meta.host || metaId(state.meta));
+});
 
 // ===========================================================================
-// control: send to Claude (continuation prompt + split parts to attach)
+// control: hand off to another MCP client (continuation prompt + split parts)
 // ===========================================================================
 function closeClaude() { $("#claude-modal").hidden = true; }
 for (const c of document.querySelectorAll("[data-claude-close]")) c.addEventListener("click", closeClaude);
@@ -557,7 +593,7 @@ async function sendToClaude() {
     const parts = $("#claude-parts");
     parts.textContent = "";
     if (data.split && data.parts.length) {
-      parts.appendChild(el("h4", { class: "parts-h", text: "Attach these parts to Claude (≤20 MB each)" }));
+      parts.appendChild(el("h4", { class: "parts-h", text: "Attach these parts if your client needs uploads (≤20 MB each)" }));
       for (const name of data.parts) {
         const href = "/api/recordings/" + encodeURIComponent(id) + "/file/" + encodeURIComponent(name);
         parts.appendChild(el("div", { class: "dl-row" }, [
@@ -567,7 +603,7 @@ async function sendToClaude() {
       }
       if (data.reconstruct) parts.appendChild(el("p", { class: "hint", text: "Rejoin before opening: " + data.reconstruct }));
     } else {
-      parts.appendChild(el("p", { class: "hint", text: "Small recording — Claude can read it directly at the path in the prompt, or use the har-recorder MCP tools." }));
+      parts.appendChild(el("p", { class: "hint", text: "Small recording — Claude or Codex can read it directly at the path in the prompt, or use the har-recorder MCP tools." }));
     }
     $("#claude-modal").hidden = false;
   } catch (err) {

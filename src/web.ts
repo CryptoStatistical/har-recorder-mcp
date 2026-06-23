@@ -332,7 +332,7 @@ async function handleGet(res: ServerResponse, url: URL): Promise<void> {
     // GET /api/recordings/:id/claude-prompt — continuation prompt + transfer info
     if (sub === "claude-prompt") {
       if (live) {
-        notFound(res, "Stop the recording first to hand it to Claude.");
+        notFound(res, "Stop the recording first to hand it to another MCP client.");
         return;
       }
       const meta = await readMetadata(dir);
@@ -378,10 +378,9 @@ async function listFiles(dir: string): Promise<Array<{ name: string; bytes: numb
 }
 
 /**
- * Build the continuation prompt the user pastes into the Claude conversation that
- * launched the MCP, plus the split-part info to attach (Claude's upload caps at
- * ~20 MB, so large bundles travel as the ≤20 MB parts; the whole file is for the
- * local download instead).
+ * Build the continuation prompt the user pastes into a Claude or Codex conversation
+ * that has this MCP available, plus split-part info for upload-capped clients.
+ * Large bundles travel as ≤20 MB parts; the whole file is kept for local use.
  */
 function buildClaudePrompt(
   id: string,
@@ -410,7 +409,7 @@ function buildClaudePrompt(
     lines.push(
       "",
       `The full bundle is split into ${parts.length} parts for upload (each ≤20 MB): ${parts.join(", ")}.`,
-      "Attach ALL the parts to me, then rejoin them BEFORE opening session.har:",
+      "If uploading artifacts, attach ALL the parts, then rejoin them BEFORE opening session.har:",
       `  ${reconstruct}`,
     );
   }
@@ -462,6 +461,15 @@ async function handlePost(req: IncomingMessage, res: ServerResponse, url: URL): 
         return;
       }
       sendJson(res, 200, await manager.annotate(id, note));
+      return;
+    }
+    if (action === "rename") {
+      const name = str(body.name as string);
+      if (!name) {
+        sendJson(res, 400, { error: "Field 'name' is required." });
+        return;
+      }
+      sendJson(res, 200, await manager.renameRecording(id, name));
       return;
     }
     if (action === "close") {
