@@ -1,14 +1,14 @@
 # HAR Recorder MCP
 
-Server MCP che permette a Claude di **registrare sessioni di navigazione reali**
-(guidate dall'utente, login compresi) e produrre HAR **completi** — cookie
-http-only inclusi, header request/response, post-data e body delle risposte,
-**traffico di pagine, iframe, worker, service worker e frame WebSocket**.
+MCP server that lets Claude **record real, user-driven browsing sessions**
+(logins included) and produce **complete** HAR files — http-only cookies
+included, request/response headers, post-data and response bodies,
+**traffic from pages, iframes, workers, service workers and WebSocket frames**.
 
-Risolve i limiti tipici degli HAR exporter esistenti: cookie http-only mancanti,
-recording che non parte, fetch dei service worker assenti. La cattura avviene via
-**auto-attach CDP a livello browser** (non per-pagina), quindi prende ogni target.
-Vedi [`BLUEPRINT.md`](./BLUEPRINT.md).
+It fixes the usual gaps of existing HAR exporters: missing http-only cookies,
+recordings that never start, absent service-worker fetches. Capture runs via
+**browser-level CDP auto-attach** (not per-page), so it catches every target.
+See [`BLUEPRINT.md`](./BLUEPRINT.md).
 
 ## Quickstart
 
@@ -17,63 +17,63 @@ npm install
 npm run build
 ```
 
-Il server usa **Google Chrome** se presente (migliore per i login reali) e
-ripiega sul Chromium di Playwright. Per forzare/installare quest'ultimo:
+The server uses **Google Chrome** when available (best for real logins) and
+falls back to Playwright's Chromium. To force/install the latter:
 
 ```bash
 npm run install:browser   # playwright install chromium
 ```
 
-Registra il server nel client MCP (Claude Desktop / Claude Code):
+Register the server in your MCP client (Claude Desktop / Claude Code):
 
 ```json
 {
   "mcpServers": {
     "har-recorder": {
       "command": "node",
-      "args": ["/percorso/assoluto/har-recorder-mcp/dist/index.js"],
-      "env": { "HAR_RECORDER_ROOT": "/percorso/del/tuo/progetto" }
+      "args": ["/absolute/path/to/har-recorder-mcp/dist/index.js"],
+      "env": { "HAR_RECORDER_ROOT": "/path/to/your/project" }
     }
   }
 }
 ```
 
-`HAR_RECORDER_ROOT` decide dove nasce `.recording/` (default: cwd del client).
-`HAR_RECORDER_HEADLESS=1` forza la modalità headless (utile per CI/test).
+`HAR_RECORDER_ROOT` decides where `.recording/` is created (default: the client's
+cwd). `HAR_RECORDER_HEADLESS=1` forces headless mode (handy for CI/tests).
 
-### Modalità attach (registrare un browser già aperto)
+### Attach mode (record an already-open browser)
 
-Oltre a lanciare Chrome, il server può **agganciarsi a un Chrome che l'utente sta
-già usando**, purché avviato col debugging:
+Besides launching Chrome, the server can **attach to a Chrome the user is already
+using**, as long as it was started with remote debugging:
 
 ```bash
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --remote-debugging-port=9222
 ```
 
-Poi `start_recording({ attachToPort: 9222 })`: registra senza lanciare nulla;
-`close_browser` si limita a disconnettersi (non chiude il browser dell'utente).
+Then `start_recording({ attachToPort: 9222 })`: it records without launching
+anything; `close_browser` only disconnects (it does not close the user's browser).
 
-## Uso semplice (linguaggio naturale)
+## Simple usage (natural language)
 
-Le descrizioni dei tool sono in inglese e ottimizzate per il triggering, così
-basta un prompt naturale — anche in italiano — per attivarli:
+Tool descriptions are in English and tuned for triggering, so a plain
+natural-language prompt — in any language — is enough to invoke them:
 
-- _"registra una sessione e cattura il traffico verso fineco.it"_ → `start_recording`
-- _"fermati e salva l'HAR"_ → `stop_recording`
-- _"mostra le richieste POST verso /api"_ → `list_requests`
-- _"dammi i cookie http-only"_ → `get_cookies`
+- _"record a session and capture the traffic to fineco.it"_ → `start_recording`
+- _"stop and save the HAR"_ → `stop_recording`
+- _"show the POST requests to /api"_ → `list_requests`
+- _"give me the http-only cookies"_ → `get_cookies`
 
-## Flusso d'uso
+## Workflow
 
-1. Claude → `start_recording(url, label?)` → si apre Chrome (headful), inizia la
-   cattura in background, ritorna un `recordingId`.
-2. **Tu** navighi e fai login nel browser. (Claude può chiederti se serve login,
-   profilo persistente o pulito, se catturare i body.)
-3. (opzionale) `mark_checkpoint("login fatto")` per segmentare e migliorare il nome.
-4. Claude → `stop_recording(recordingId)` → assembla l'HAR, lo nomina in base a
-   titoli/host/checkpoint, crea lo `.zip` e il `summary.md`.
-5. Claude può interrogare la cattura con `list_requests` / `get_request` /
-   `get_cookies` senza riversare l'HAR intero nel contesto.
+1. Claude → `start_recording(url, label?)` → Chrome opens (headful), capture
+   starts in the background, returns a `recordingId`.
+2. **You** navigate and log in inside the browser. (Claude may ask whether a login
+   is needed, persistent vs clean profile, whether to capture bodies.)
+3. (optional) `mark_checkpoint("login done")` to segment and improve the name.
+4. Claude → `stop_recording(recordingId)` → assembles the HAR, names it from
+   titles/host/checkpoints, creates the `.zip` and the `summary.md`.
+5. Claude can query the capture with `list_requests` / `get_request` /
+   `get_cookies` without dumping the whole HAR into context.
 
 ## Output
 
@@ -81,40 +81,40 @@ basta un prompt naturale — anche in italiano — per attivarli:
 .recording/
 ├── index.json
 ├── 2026-06-22_143052__fineco-it__login__dashboard/
-│   ├── session.har          # HAR completo (http-only inclusi)
+│   ├── session.har          # complete HAR (http-only included)
 │   ├── session.har.gz
-│   ├── 2026-06-22_..._dashboard.zip   # pacchetto consegnato
+│   ├── 2026-06-22_..._dashboard.zip   # deliverable package
 │   ├── metadata.json
-│   ├── summary.md           # guida di ricostruzione
-│   └── cookies.json         # cookie jar completo (incl. http-only)
-└── .chrome-profile/         # profilo persistente (login conservati)
+│   ├── summary.md           # reconstruction guide
+│   └── cookies.json         # full cookie jar (incl. http-only)
+└── .chrome-profile/         # persistent profile (logins kept)
 ```
 
-## ⚠️ Sicurezza
+## ⚠️ Security
 
-`.recording/` contiene **token e cookie di sessione vivi**. È già in `.gitignore`.
-Non condividere gli zip. Usa `profile: "fresh"` per catture isolate.
+`.recording/` contains **live session tokens and cookies**. It is already in
+`.gitignore`. Don't share the zips. Use `profile: "fresh"` for isolated captures.
 
-## Tool disponibili
+## Available tools
 
-| Tool | Descrizione |
+| Tool | Description |
 |------|-------------|
-| `start_recording` | Apre Chrome headful (o si aggancia via `attachToPort`) e avvia la cattura CDP completa di tutti i target. `{ url?, label?, profile?, captureBodies?, channel?, attachToPort? }` |
-| `get_session_status` | Stato live (durata, n. richieste, pagine, checkpoint). `{ recordingId? }` |
-| `mark_checkpoint` | Segna un passaggio (es. "login fatto"). `{ label, recordingId? }` |
-| `stop_recording` | Assembla HAR + zip + summary + cookie jar. `{ recordingId? }` |
-| `list_recordings` | Elenca le registrazioni note. |
-| `list_requests` | Elenco sintetico filtrabile, senza dumpare l'HAR. `{ recordingId, method?, status?, urlContains?, mimeType?, resourceType?, limit?, offset? }` |
-| `get_request` | Entry HAR completa di una richiesta. `{ recordingId, index? \| requestId? \| urlContains? }` |
-| `get_cookies` | Cookie jar (http-only inclusi), filtrabile per dominio. `{ recordingId, domain? }` |
-| `annotate_recording` | Aggiunge una nota (in metadata + summary). `{ recordingId, note }` |
-| `close_browser` | Chiude Chrome (e pulisce il profilo `fresh`). `{ recordingId? }` |
+| `start_recording` | Opens Chrome headful (or attaches via `attachToPort`) and starts complete CDP capture of every target. `{ url?, label?, profile?, captureBodies?, channel?, attachToPort? }` |
+| `get_session_status` | Live status (duration, request count, pages, checkpoints). `{ recordingId? }` |
+| `mark_checkpoint` | Marks a step (e.g. "login done"). `{ label, recordingId? }` |
+| `stop_recording` | Assembles HAR + zip + summary + cookie jar. `{ recordingId? }` |
+| `list_recordings` | Lists known recordings. |
+| `list_requests` | Filterable summary list, without dumping the HAR. `{ recordingId, method?, status?, urlContains?, mimeType?, resourceType?, limit?, offset? }` |
+| `get_request` | Full HAR entry for a request (WebSocket frames in `_webSocketMessages`). `{ recordingId, index? \| requestId? \| urlContains? }` |
+| `get_cookies` | Cookie jar (http-only included), filterable by domain. `{ recordingId, domain? }` |
+| `annotate_recording` | Adds a note (to metadata + summary). `{ recordingId, note }` |
+| `close_browser` | Closes Chrome (and cleans up the `fresh` profile). `{ recordingId? }` |
 
-## Sviluppo
+## Development
 
 ```bash
-npm run build       # compila TypeScript → dist/
+npm run build       # compile TypeScript → dist/
 npm run dev         # watch mode
-npm test            # smoke test del server MCP (no browser)
-npm run test:e2e    # e2e headless: cookie http-only + service worker + frame WebSocket
+npm test            # smoke test of the MCP server (no browser)
+npm run test:e2e    # headless e2e: http-only cookies + service worker + WebSocket frames
 ```
