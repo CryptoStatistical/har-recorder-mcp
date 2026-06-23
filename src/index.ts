@@ -184,10 +184,10 @@ server.registerTool(
 );
 
 // ---------------------------------------------------------------------------
-// Prompts = interactive menu of the recommended workflow. MCP clients (Claude
+// Prompts = an interactive menu of the recommended workflow. MCP clients (Claude
 // Code / Desktop) render these as selectable items, so the user gets a guided
-// menu instead of having to remember the tool sequence. Labels are in Italian
-// (this is the human-facing menu); the body steers Claude through the tools.
+// menu instead of having to remember the tool sequence. The body steers Claude
+// through the tools.
 // ---------------------------------------------------------------------------
 
 const userMsg = (text: string) => ({
@@ -195,96 +195,94 @@ const userMsg = (text: string) => ({
 });
 
 server.registerPrompt(
-  "guida",
+  "guide",
   {
-    title: "📋 Guida: registra e analizza una sessione",
-    description: "Menu con gli step consigliati: avvia → naviga → checkpoint → ferma/analizza → chiudi.",
+    title: "📋 Guide: record & analyze a session",
+    description: "The recommended steps: start → navigate → checkpoint → stop/analyze → close.",
   },
   () =>
     userMsg(
       [
-        'Fai da guida per il server MCP "har-recorder". Mostra all\'utente questo menu con gli step consigliati e poi agisci in base alla sua scelta:',
+        'Act as the guide for the "har-recorder" MCP server. Show the user this menu of recommended steps, then act on their choice:',
         "",
-        "1. ▶️  Avvia registrazione — `start_recording({ url?, label? })`. Si apre Chrome (headful): l'utente naviga e fa login a mano. La cattura parte subito: pagine, iframe, worker, service worker, cookie http-only e frame WebSocket.",
-        '2. 🚩  (opzionale) Segna checkpoint — `mark_checkpoint({ label })` nei passaggi chiave (es. "login fatto"): migliora la segmentazione e il nome del file.',
-        "3. ⏹️  Ferma e analizza — `stop_recording()` assembla l'HAR (.har/.zip/summary.md/cookies.json). Poi analizza DOVE è andato l'utente con `list_requests` (resourceType=document e method=POST) e `get_cookies`.",
-        "4. ❌  Chiudi il browser — `close_browser()`.",
+        "1. ▶️  Start recording — `start_recording({ url?, label? })`. Chrome opens (headful): the user navigates and logs in manually. Capture starts immediately: pages, iframes, workers, service workers, http-only cookies and WebSocket frames.",
+        '2. 🚩  (optional) Mark checkpoint — `mark_checkpoint({ label })` at key steps (e.g. "login done"): improves segmentation and the file name.',
+        "3. ⏹️  Stop & analyze — `stop_recording()` assembles the HAR (.har/.zip/summary.md/cookies.json). Then analyze WHERE the user went with `list_requests` (resourceType=document and method=POST) and `get_cookies`.",
+        "4. ❌  Close the browser — `close_browser()`.",
         "",
-        "⚠️  IMPORTANTE: chiudere il browser mentre la registrazione è ANCORA ATTIVA scarta la cattura non salvata (l'HAR non viene assemblato). Esegui SEMPRE `stop_recording` PRIMA di `close_browser`. Se l'utente chiede di chiudere mentre sta ancora registrando, avvisalo e proponi: prima fermo e salvo, poi chiudo.",
+        "⚠️  IMPORTANT: closing the browser while a recording is STILL ACTIVE discards the unsaved capture (the HAR is never assembled). ALWAYS run `stop_recording` BEFORE `close_browser`. If the user asks to close while still recording, warn them and propose: stop & save first, then close.",
         "",
-        "Chiedi all'utente quale step vuole, oppure parti dal punto 1 se sta iniziando ora.",
+        "Ask the user which step they want, or start from step 1 if they are just beginning.",
       ].join("\n"),
     ),
 );
 
 server.registerPrompt(
-  "avvia-registrazione",
+  "start-recording",
   {
-    title: "▶️ Avvia registrazione",
-    description: "Apre Chrome e inizia a catturare il traffico (opzionale: sito da aprire).",
+    title: "▶️ Start recording",
+    description: "Open Chrome and start capturing traffic (optional: a site to open).",
     argsSchema: {
-      sito: z.string().optional().describe("URL/sito iniziale da aprire (opzionale)."),
-      etichetta: z.string().optional().describe("Etichetta breve per la registrazione (opzionale)."),
+      site: z.string().optional().describe("Initial URL/site to open (optional)."),
+      label: z.string().optional().describe("Short label for the recording (optional)."),
     },
   },
   (args) => {
     const parts: string[] = [];
-    if (args.sito) parts.push(`url: ${JSON.stringify(args.sito)}`);
-    if (args.etichetta) parts.push(`label: ${JSON.stringify(args.etichetta)}`);
+    if (args.site) parts.push(`url: ${JSON.stringify(args.site)}`);
+    if (args.label) parts.push(`label: ${JSON.stringify(args.label)}`);
     const call = parts.length ? `start_recording({ ${parts.join(", ")} })` : "start_recording()";
     return userMsg(
-      `Avvia una registrazione di sessione chiamando ${call}. Poi spiega all'utente che Chrome è aperto, che deve navigare e fare login a mano, e che stai catturando tutto. Ricordagli che per salvare dovrà dire "ferma" (stop_recording) PRIMA di chiudere il browser.`,
+      `Start a recording session by calling ${call}. Then tell the user Chrome is open, that they should navigate and log in manually, and that everything is being captured. Remind them that to save they must say "stop" (stop_recording) BEFORE closing the browser.`,
     );
   },
 );
 
 server.registerPrompt(
-  "segna-checkpoint",
+  "mark-checkpoint",
   {
-    title: "🚩 Segna checkpoint",
-    description: "Marca un passaggio nella registrazione attiva (es. 'login fatto').",
+    title: "🚩 Mark checkpoint",
+    description: "Mark a step in the active recording (e.g. 'login done').",
     argsSchema: {
-      etichetta: z.string().describe("Etichetta del checkpoint (es. 'login fatto')."),
+      label: z.string().describe("Checkpoint label (e.g. 'login done')."),
     },
   },
   (args) =>
-    userMsg(
-      `Segna un checkpoint nella registrazione attiva chiamando mark_checkpoint({ label: ${JSON.stringify(args.etichetta)} }).`,
-    ),
+    userMsg(`Mark a checkpoint in the active recording by calling mark_checkpoint({ label: ${JSON.stringify(args.label)} }).`),
 );
 
 server.registerPrompt(
-  "ferma-e-analizza",
+  "stop-and-analyze",
   {
-    title: "⏹️ Ferma e analizza dove sono andato",
-    description: "Ferma la cattura, assembla l'HAR e ricostruisce il percorso di navigazione.",
+    title: "⏹️ Stop & analyze where I went",
+    description: "Stop capture, assemble the HAR, and reconstruct the navigation path.",
   },
   () =>
     userMsg(
       [
-        "Ferma la registrazione attiva con `stop_recording()`.",
-        "Poi analizza DOVE è andato l'utente:",
-        '- `list_requests` con resourceType="document" per le navigazioni di pagina;',
-        '- `list_requests` con method="POST" per azioni/form/login;',
-        "- `get_cookies` per capire se è stata aperta una sessione autenticata.",
-        "Riassumi: percorso (ricerca → siti visitati → login sì/no), host contattati e dove sono salvati gli artefatti.",
-        "NON chiudere il browser (resta aperto per ispezione) salvo richiesta esplicita dell'utente.",
+        "Stop the active recording with `stop_recording()`.",
+        "Then analyze WHERE the user went:",
+        '- `list_requests` with resourceType="document" for page navigations;',
+        '- `list_requests` with method="POST" for actions/forms/login;',
+        "- `get_cookies` to tell whether an authenticated session was established.",
+        "Summarize: the path (search → sites visited → login yes/no), hosts contacted, and where the artifacts are saved.",
+        "Do NOT close the browser (leave it open for inspection) unless the user explicitly asks.",
       ].join("\n"),
     ),
 );
 
 server.registerPrompt(
-  "chiudi-browser",
+  "close-browser",
   {
-    title: "❌ Chiudi il browser",
-    description: "Chiude Chrome. Se una registrazione è ancora attiva, salva prima l'HAR.",
+    title: "❌ Close the browser",
+    description: "Close Chrome. If a recording is still active, save the HAR first.",
   },
   () =>
     userMsg(
       [
-        "Chiudi il browser della registrazione.",
-        '⚠️ Se una registrazione è ANCORA ATTIVA (status "recording"), chiuderlo scarta la cattura non salvata.',
-        "Quindi: controlla prima con `get_session_status`. Se è ancora in corso, avvisa l'utente ed esegui `stop_recording` PRIMA (così l'HAR viene salvato), poi `close_browser`. Se è già stata fermata, chiama direttamente `close_browser`.",
+        "Close the recording's browser.",
+        '⚠️ If a recording is STILL ACTIVE (status "recording"), closing discards the unsaved capture.',
+        "So: check first with `get_session_status`. If it is still running, warn the user and run `stop_recording` FIRST (so the HAR is saved), then `close_browser`. If it was already stopped, call `close_browser` directly.",
       ].join("\n"),
     ),
 );

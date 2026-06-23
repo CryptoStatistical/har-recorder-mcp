@@ -97,17 +97,15 @@ through instead of remembering the tool order:
 
 | Prompt | What it does |
 |--------|--------------|
-| `guida` | Shows the recommended steps (start → navigate → checkpoint → stop/analyze → close). |
-| `avvia-registrazione` | Starts a recording (optional `sito`, `etichetta`). |
-| `segna-checkpoint` | Marks a checkpoint (`etichetta`). |
-| `ferma-e-analizza` | Stops capture and reconstructs where you went. |
-| `chiudi-browser` | Closes Chrome — saves the HAR first if a recording is still active. |
+| `guide` | Shows the recommended steps (start → navigate → checkpoint → stop/analyze → close). |
+| `start-recording` | Starts a recording (optional `site`, `label`). |
+| `mark-checkpoint` | Marks a checkpoint (`label`). |
+| `stop-and-analyze` | Stops capture and reconstructs where you went. |
+| `close-browser` | Closes Chrome — saves the HAR first if a recording is still active. |
 
 > ⚠️ Closing the browser while a recording is still **active** discards the unsaved
-> capture (the HAR is never assembled). The `chiudi-browser` and `guida` prompts
+> capture (the HAR is never assembled). The `close-browser` and `guide` prompts
 > enforce `stop_recording` **before** `close_browser`, so nothing is lost.
-
-Menu labels are in Italian; the prompt bodies steer Claude through the tools.
 
 ## Workflow
 
