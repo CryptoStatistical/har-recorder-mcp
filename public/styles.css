@@ -108,7 +108,9 @@ body { display: grid; grid-template-columns: 300px 1fr; height: 100vh; overflow:
   background: linear-gradient(90deg, rgba(224, 70, 60, 0.16), rgba(224, 70, 60, 0.04));
   border-bottom: 1px solid #3a201d;
 }
+.live-bar.open { background: linear-gradient(90deg, rgba(45, 212, 191, 0.12), rgba(45, 212, 191, 0.02)); border-bottom-color: #1d3a36; }
 .live-pulse { width: 10px; height: 10px; border-radius: 50%; background: var(--red-deep); flex: none; animation: pulse 1.6s ease-out infinite; }
+.live-pulse.static { animation: none; background: var(--accent-2); box-shadow: none; }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(224, 70, 60, 0.55); } 70% { box-shadow: 0 0 0 9px rgba(224, 70, 60, 0); } 100% { box-shadow: 0 0 0 0 rgba(224, 70, 60, 0); } }
 .live-info { min-width: 0; }
 .live-host { font-weight: 650; font-size: 13.5px; }
