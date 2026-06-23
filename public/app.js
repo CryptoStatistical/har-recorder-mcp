@@ -76,7 +76,7 @@ function toast(msg, kind) {
 // ---------------------------------------------------------------------------
 // state
 // ---------------------------------------------------------------------------
-const state = { recordings: [], selected: null, meta: null, loaded: {}, activeId: null, openId: null };
+const state = { recordings: [], selected: null, meta: null, loaded: {}, activeId: null };
 
 // ===========================================================================
 // recordings sidebar
@@ -571,34 +571,20 @@ let lastActiveId = null;
 async function refreshStatus() {
   let s;
   try { s = await getJSON("/api/status"); } catch (_) { return; }
-  const recording = !!s && s.status === "recording";
-  // After Stop the session lingers in memory with the browser still open — keep a
-  // calm bar so there is always a way to close that window from the UI.
-  const stoppedOpen = !!s && s.status === "stopped" && s.browserOpen;
+  const active = !!s && s.status === "recording";
   const bar = $("#live-bar");
-
-  if (recording || stoppedOpen) {
+  if (active) {
     bar.hidden = false;
-    bar.classList.toggle("open", !recording);
-    $("#live-pulse").classList.toggle("static", !recording);
-    state.activeId = recording ? s.recordingId : null; // only set while truly recording
-    state.openId = s.recordingId; // session held in memory (closeable)
-    const host = hostOf(s.url || "") || s.label || s.recordingId;
-    $("#live-host").textContent = recording ? host : "Browser still open · " + host;
-    $("#live-sub").textContent = recording
-      ? (s.lastRequestUrl || s.url || "(waiting for traffic…)")
-      : "Recording saved — close the browser when you're done.";
-    $("#live-stats").hidden = !recording;
+    state.activeId = s.recordingId;
+    $("#live-host").textContent = hostOf(s.url || "") || s.label || s.recordingId;
+    $("#live-sub").textContent = s.lastRequestUrl || s.url || "(waiting for traffic…)";
     $("#live-reqs").textContent = s.requestCount ?? 0;
     $("#live-dur").textContent = fmtDur(s.durationMs);
-    $("#lb-checkpoint").hidden = !recording;
-    $("#lb-stop").hidden = !recording;
   } else {
     bar.hidden = true;
     state.activeId = null;
-    state.openId = null;
   }
-  const now = recording ? s.recordingId : null;
+  const now = active ? s.recordingId : null;
   if (now !== lastActiveId) { lastActiveId = now; loadRecordings(); }
 }
 
@@ -623,19 +609,6 @@ $("#lb-stop").addEventListener("click", async () => {
     selectRecording(r.recordingId);
   } catch (e) { toast(e.message, "err"); }
   finally { $("#lb-stop").disabled = false; }
-});
-
-$("#lb-close").addEventListener("click", async () => {
-  const id = state.openId;
-  if (!id) return;
-  // Only warn when a capture is still running (closing would discard it).
-  if (state.activeId === id && !confirm("Close the browser?\nThe recording is still active — the unsaved capture will be lost. Use Stop & save first.")) return;
-  try {
-    await postJSON("/api/recordings/" + encodeURIComponent(id) + "/close", {});
-    toast("Browser closed.", "ok");
-    await refreshStatus();
-    await loadRecordings();
-  } catch (e) { toast(e.message, "err"); }
 });
 
 // ===========================================================================

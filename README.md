@@ -186,7 +186,7 @@ npm run ui          # serves http://127.0.0.1:4477 and opens it in your browser
   profile, capture-bodies, plus advanced `channel` / `attachToPort`). Chrome opens
   and capture begins.
 - **Live bar** — while a recording is active: live duration & request count, plus
-  Checkpoint, Stop & save (assembles the HAR), Close browser.
+  Checkpoint and Stop & save (assembles the HAR).
 
 **Inspect** (live *or* on-disk)
 
