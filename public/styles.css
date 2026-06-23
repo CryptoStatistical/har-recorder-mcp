@@ -32,7 +32,7 @@ html, body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--sans);
-  font-size: 13px;
+  font-size: 14.5px;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -88,12 +88,12 @@ body { display: grid; grid-template-columns: 300px 1fr; height: 100vh; overflow:
 .rec-item:hover { background: var(--bg-2); }
 .rec-item.active { background: var(--bg-3); border-color: var(--border-2); }
 .rec-item.live { border-color: #4a2420; }
-.rec-item .ri-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 44px; }
+.rec-item .ri-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 62px; }
 .rec-item .ri-sub { color: var(--text-dim); font-size: 11px; margin-top: 3px; font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rec-item .ri-stats { color: var(--text-mut); font-size: 11px; margin-top: 5px; display: flex; gap: 10px; }
 .rec-item .ri-live { position: absolute; top: 10px; right: 10px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.8px; color: var(--red); display: inline-flex; align-items: center; gap: 4px; }
 .ri-live .live-pulse { width: 7px; height: 7px; }
-.rec-item .ri-del { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border: 1px solid transparent; background: transparent; color: var(--text-mut); border-radius: 7px; cursor: pointer; font-size: 12px; line-height: 1; opacity: 0; transition: opacity 0.12s ease; }
+.rec-item .ri-del { position: absolute; top: 8px; right: 8px; padding: 3px 9px; border: 1px solid var(--border); background: var(--bg-3); color: var(--text-mut); border-radius: 7px; cursor: pointer; font-size: 11.5px; font-weight: 600; font-family: var(--sans); line-height: 1.3; opacity: 0; transition: opacity 0.12s ease; }
 .rec-item:hover .ri-del { opacity: 1; }
 .rec-item .ri-del:hover { color: var(--red); background: rgba(240, 113, 106, 0.12); border-color: #4a2420; }
 
@@ -175,7 +175,7 @@ body { display: grid; grid-template-columns: 300px 1fr; height: 100vh; overflow:
 
 /* tables */
 .table-wrap { border: 1px solid var(--border); border-radius: var(--radius); overflow: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
 thead th { position: sticky; top: 0; background: var(--bg-3); z-index: 1; text-align: left; padding: 9px 12px; color: var(--text-dim); font-weight: 600; border-bottom: 1px solid var(--border); white-space: nowrap; }
 tbody td { padding: 7px 12px; border-bottom: 1px solid var(--bg-2); vertical-align: top; }
 tbody tr:hover { background: var(--bg-2); }
@@ -213,7 +213,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 @keyframes slideIn { from { transform: translateX(24px); opacity: 0.6; } to { transform: none; opacity: 1; } }
 .drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); }
 .drawer-head h2 { margin: 0; font-size: 14px; font-family: var(--mono); word-break: break-all; }
-.icon-btn { background: var(--bg-3); border: 1px solid var(--border); color: var(--text-dim); border-radius: 8px; width: 30px; height: 30px; cursor: pointer; flex: none; }
+.icon-btn { background: var(--bg-3); border: 1px solid var(--border); color: var(--text-dim); border-radius: 8px; padding: 6px 12px; font-size: 12.5px; font-weight: 600; font-family: var(--sans); cursor: pointer; flex: none; }
 .icon-btn:hover { color: var(--text); }
 #drawer-content { padding: 16px 18px; overflow-y: auto; }
 

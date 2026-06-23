@@ -113,7 +113,7 @@ export async function deleteRecording(dir: string): Promise<void> {
   const target = recordingDirPath(dir);
   const rel = path.relative(root, target);
   if (rel === "" || rel.startsWith("..") || path.isAbsolute(rel)) {
-    throw new Error(`Rifiuto di cancellare un percorso fuori da .recording/: ${dir}`);
+    throw new Error(`Refusing to delete a path outside .recording/: ${dir}`);
   }
   await fs.rm(target, { recursive: true, force: true });
   const entries = await readIndex();
@@ -286,40 +286,40 @@ export function buildSummaryMarkdown(har: Har, meta: RecordingMetadata, cookies:
   const lines: string[] = [];
   lines.push(`# Recording — ${meta.title ?? meta.host ?? meta.url}`);
   lines.push("");
-  lines.push(`> ⚠️ Questo pacchetto contiene **cookie e token di sessione vivi**. Non condividerlo.`);
+  lines.push(`> WARNING: this package contains **live session cookies and tokens**. Do not share it.`);
   lines.push("");
-  lines.push("## Sessione");
+  lines.push("## Session");
   lines.push("");
   lines.push(`- **ID**: \`${meta.id}\``);
   if (meta.label) lines.push(`- **Label**: ${meta.label}`);
-  lines.push(`- **URL iniziale**: ${meta.url}`);
-  if (meta.host) lines.push(`- **Host principale**: ${meta.host}`);
-  lines.push(`- **Avviata**: ${meta.startedAt}`);
-  if (meta.stoppedAt) lines.push(`- **Fermata**: ${meta.stoppedAt}`);
-  if (meta.durationMs != null) lines.push(`- **Durata**: ${(meta.durationMs / 1000).toFixed(1)} s`);
-  lines.push(`- **Richieste catturate**: ${meta.requestCount}`);
-  lines.push(`- **Profilo**: ${meta.profile} · **body catturati**: ${meta.captureBodies ? "sì" : "no"}`);
+  lines.push(`- **Initial URL**: ${meta.url}`);
+  if (meta.host) lines.push(`- **Primary host**: ${meta.host}`);
+  lines.push(`- **Started**: ${meta.startedAt}`);
+  if (meta.stoppedAt) lines.push(`- **Stopped**: ${meta.stoppedAt}`);
+  if (meta.durationMs != null) lines.push(`- **Duration**: ${(meta.durationMs / 1000).toFixed(1)} s`);
+  lines.push(`- **Requests captured**: ${meta.requestCount}`);
+  lines.push(`- **Profile**: ${meta.profile} · **bodies captured**: ${meta.captureBodies ? "yes" : "no"}`);
   if (meta.browser) lines.push(`- **Browser**: ${meta.browser.name} ${meta.browser.version}`);
   lines.push("");
 
   if (meta.checkpoints.length) {
-    lines.push("## Checkpoint");
+    lines.push("## Checkpoints");
     lines.push("");
     for (const c of meta.checkpoints) lines.push(`- \`${c.at}\` — ${c.label}`);
     lines.push("");
   }
 
-  lines.push("## Host contattati");
+  lines.push("## Hosts contacted");
   lines.push("");
-  for (const [h, n] of topHosts) lines.push(`- \`${h}\` — ${n} richieste`);
+  for (const [h, n] of topHosts) lines.push(`- \`${h}\` — ${n} requests`);
   lines.push("");
 
-  lines.push("## Richieste rilevanti (auth / POST / redirect / errori)");
+  lines.push("## Notable requests (auth / POST / redirect / errors)");
   lines.push("");
   if (notable.length === 0) {
-    lines.push("_Nessuna richiesta non-GET o di autenticazione individuata._");
+    lines.push("_No non-GET or authentication requests found._");
   } else {
-    lines.push("| # | metodo | status | URL |");
+    lines.push("| # | method | status | URL |");
     lines.push("|---|--------|--------|-----|");
     for (const e of notable.slice(0, 60)) {
       const idx = entries.indexOf(e);
@@ -332,55 +332,55 @@ export function buildSummaryMarkdown(har: Har, meta: RecordingMetadata, cookies:
   if (webSockets.length) {
     lines.push("## WebSocket");
     lines.push("");
-    lines.push(`- **Connessioni**: ${webSockets.length} · **frame catturati**: ${wsFrameTotal}`);
+    lines.push(`- **Connections**: ${webSockets.length} · **frames captured**: ${wsFrameTotal}`);
     for (const e of webSockets.slice(0, 20)) {
       const idx = entries.indexOf(e);
-      lines.push(`- #${idx} \`${e.request.url}\` — ${e._webSocketMessages?.length ?? 0} frame`);
+      lines.push(`- #${idx} \`${e.request.url}\` — ${e._webSocketMessages?.length ?? 0} frames`);
     }
     lines.push("");
-    lines.push("I frame sono salvati per ciascuna entry sotto `_webSocketMessages` (convenzione Chrome DevTools).");
+    lines.push("Frames are stored on each entry under `_webSocketMessages` (Chrome DevTools convention).");
     lines.push("");
   }
 
-  lines.push("## Cookie");
+  lines.push("## Cookies");
   lines.push("");
-  lines.push(`- **Totale**: ${cookies.length} (di cui **http-only**: ${httpOnly.length})`);
+  lines.push(`- **Total**: ${cookies.length} (of which **http-only**: ${httpOnly.length})`);
   for (const [d, n] of [...cookieDomains.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15)) {
     lines.push(`- \`${d || "(no domain)"}\` — ${n}`);
   }
   lines.push("");
-  lines.push("Il jar completo (http-only inclusi) è in `cookies.json`. Gli stessi cookie compaiono");
-  lines.push("anche negli header `Cookie`/`Set-Cookie` delle entry HAR.");
+  lines.push("The full jar (http-only included) is in `cookies.json`. The same cookies also appear");
+  lines.push("in the `Cookie`/`Set-Cookie` headers of the HAR entries.");
   lines.push("");
 
-  lines.push("## Ricostruzione");
+  lines.push("## Reconstruction");
   lines.push("");
-  lines.push("1. Apri `session.har` in un client (Insomnia, Postman, browser devtools, script).");
-  lines.push("2. Per replicare la sessione autenticata, inietta i cookie da `cookies.json`");
-  lines.push("   (sono presenti anche gli http-only, normalmente persi dagli exporter).");
-  lines.push("3. Le richieste di autenticazione sono elencate sopra: replicale nell'ordine mostrato.");
-  lines.push("4. `metadata.json` riporta checkpoint, host e annotazioni utili al replay.");
+  lines.push("1. Open `session.har` in a client (Insomnia, Postman, browser devtools, a script).");
+  lines.push("2. To replay the authenticated session, inject the cookies from `cookies.json`");
+  lines.push("   (http-only ones are included — usually lost by other exporters).");
+  lines.push("3. The authentication requests are listed above: replay them in the order shown.");
+  lines.push("4. `metadata.json` carries checkpoints, hosts and notes useful for the replay.");
   lines.push("");
 
-  lines.push("## Trasferimento (file grande)");
+  lines.push("## Transfer (large file)");
   lines.push("");
-  lines.push("L'HAR completo può essere molto grande. Il pacchetto è lo `*.zip` in questa");
-  lines.push("cartella; se supera **20 MB** (limite di molti canali di upload) viene diviso in");
-  lines.push("parti numerate `*.zip.001`, `*.zip.002`, … (ciascuna ≤ 20 MB).");
+  lines.push("The full HAR can be very large. The package is the `*.zip` in this folder; if it");
+  lines.push("exceeds **20 MB** (the cap of many upload channels) it is split into numbered parts");
+  lines.push("`*.zip.001`, `*.zip.002`, … (each ≤ 20 MB).");
   lines.push("");
-  lines.push("Per passarlo: invia **tutte** le parti, poi **ricostruisci PRIMA di aprire l'HAR**:");
+  lines.push("To transfer it: send **all** the parts, then **rejoin them BEFORE opening the HAR**:");
   lines.push("");
   lines.push("```bash");
-  lines.push("cat *.zip.*  > bundle.zip      # rejoin in ordine numerico");
-  lines.push("unzip bundle.zip              # estrae session.har e gli altri file");
+  lines.push("cat *.zip.*  > bundle.zip      # rejoin in numeric order");
+  lines.push("unzip bundle.zip              # extracts session.har and the other files");
   lines.push("```");
   lines.push("");
-  lines.push("Windows (PowerShell): `cmd /c copy /b parte1+parte2+... bundle.zip`.");
-  lines.push("Tieni le parti nell'ordine dei numeri; non aprire una singola parte da sola.");
+  lines.push("Windows (PowerShell): `cmd /c copy /b part1+part2+... bundle.zip`.");
+  lines.push("Keep the parts in numeric order; do not open a single part on its own.");
   lines.push("");
 
   if (meta.notes.length) {
-    lines.push("## Annotazioni");
+    lines.push("## Notes");
     lines.push("");
     for (const n of meta.notes) lines.push(`- ${n}`);
     lines.push("");

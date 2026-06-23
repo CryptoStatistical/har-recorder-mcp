@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>HAR Recorder</title>
+    <link rel="icon" href="data:," />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -17,13 +18,11 @@
       </header>
 
       <div class="side-actions">
-        <button id="new-rec" class="btn primary block">
-          <span class="dot-rec"></span> Nuova registrazione
-        </button>
+        <button id="new-rec" class="btn primary block">New recording</button>
       </div>
 
       <div class="sidebar-search">
-        <input id="rec-filter" type="search" placeholder="Filtra registrazioni…" autocomplete="off" />
+        <input id="rec-filter" type="search" placeholder="Filter recordings…" autocomplete="off" />
       </div>
       <div id="rec-list" class="rec-list" aria-busy="true"></div>
       <footer id="root-label" class="root-label"></footer>
@@ -38,20 +37,19 @@
           <div class="live-sub" id="live-sub">—</div>
         </div>
         <div class="live-stats">
-          <span><b id="live-reqs">0</b> richieste</span>
+          <span><b id="live-reqs">0</b> requests</span>
           <span><b id="live-dur">0s</b></span>
         </div>
         <div class="live-actions">
-          <button id="lb-checkpoint" class="btn ghost sm">🚩 Checkpoint</button>
-          <button id="lb-stop" class="btn warn sm">⏹ Stop &amp; salva</button>
-          <button id="lb-close" class="btn danger-ghost sm">✕ Chiudi browser</button>
+          <button id="lb-checkpoint" class="btn ghost sm">Checkpoint</button>
+          <button id="lb-stop" class="btn warn sm">Stop &amp; save</button>
+          <button id="lb-close" class="btn danger-ghost sm">Close browser</button>
         </div>
       </div>
 
       <div id="empty" class="empty">
-        <div class="empty-glyph">◉</div>
-        <p>Avvia una <b>Nuova registrazione</b> o selezionane una a sinistra.</p>
-        <button class="btn primary" onclick="document.getElementById('new-rec').click()">＋ Nuova registrazione</button>
+        <p>Start a new recording, or pick one on the left.</p>
+        <button class="btn primary" onclick="document.getElementById('new-rec').click()">New recording</button>
       </div>
 
       <section id="detail" class="detail" hidden>
@@ -62,14 +60,14 @@
           </div>
           <div class="dh-right">
             <div id="d-badges" class="d-badges"></div>
-            <button id="d-delete" class="btn danger-ghost sm" hidden>🗑 Elimina dal disco</button>
+            <button id="d-delete" class="btn danger-ghost sm" hidden>Delete from disk</button>
           </div>
         </header>
 
         <nav class="tabs" role="tablist">
           <button class="tab active" data-tab="overview">Overview</button>
-          <button class="tab" data-tab="requests">Richieste</button>
-          <button class="tab" data-tab="cookies">Cookie</button>
+          <button class="tab" data-tab="requests">Requests</button>
+          <button class="tab" data-tab="cookies">Cookies</button>
           <button class="tab" data-tab="summary">Summary</button>
         </nav>
 
@@ -78,19 +76,19 @@
 
           <div class="panel" data-panel="requests">
             <div class="filters">
-              <select id="f-method"><option value="">metodo</option></select>
+              <select id="f-method"><option value="">method</option></select>
               <input id="f-status" type="number" min="0" placeholder="status" />
-              <select id="f-type"><option value="">tipo</option></select>
-              <input id="f-url" type="search" placeholder="url contiene…" />
-              <button id="f-apply" class="btn primary sm">Filtra</button>
+              <select id="f-type"><option value="">type</option></select>
+              <input id="f-url" type="search" placeholder="url contains…" />
+              <button id="f-apply" class="btn primary sm">Filter</button>
               <button id="f-reset" class="btn ghost sm">Reset</button>
-              <button id="f-refresh" class="btn ghost sm" title="Aggiorna" hidden>↻</button>
+              <button id="f-refresh" class="btn ghost sm" title="Refresh" hidden>Refresh</button>
               <span id="req-count" class="muted"></span>
             </div>
             <div class="table-wrap">
               <table class="req-table">
                 <thead>
-                  <tr><th>#</th><th>Metodo</th><th>Status</th><th>Tipo</th><th>Mime</th><th class="num">Byte</th><th>URL</th></tr>
+                  <tr><th>#</th><th>Method</th><th>Status</th><th>Type</th><th>Mime</th><th class="num">Bytes</th><th>URL</th></tr>
                 </thead>
                 <tbody id="req-body"></tbody>
               </table>
@@ -99,15 +97,15 @@
 
           <div class="panel" data-panel="cookies">
             <div class="filters">
-              <input id="c-domain" type="search" placeholder="dominio contiene…" />
-              <button id="c-apply" class="btn primary sm">Filtra</button>
-              <label class="reveal"><input id="c-reveal" type="checkbox" /> mostra valori</label>
+              <input id="c-domain" type="search" placeholder="domain contains…" />
+              <button id="c-apply" class="btn primary sm">Filter</button>
+              <label class="reveal"><input id="c-reveal" type="checkbox" /> show values</label>
               <span id="cookie-count" class="muted"></span>
             </div>
             <div class="table-wrap">
               <table class="cookie-table">
                 <thead>
-                  <tr><th>Nome</th><th>Dominio</th><th>Path</th><th>HttpOnly</th><th>Secure</th><th>SameSite</th><th>Scadenza</th><th>Valore</th></tr>
+                  <tr><th>Name</th><th>Domain</th><th>Path</th><th>HttpOnly</th><th>Secure</th><th>SameSite</th><th>Expires</th><th>Value</th></tr>
                 </thead>
                 <tbody id="cookie-body"></tbody>
               </table>
@@ -126,8 +124,8 @@
       <div class="drawer-backdrop" data-close></div>
       <div class="drawer-body">
         <header class="drawer-head">
-          <h2 id="drawer-title">Richiesta</h2>
-          <button class="icon-btn" data-close aria-label="Chiudi">✕</button>
+          <h2 id="drawer-title">Request</h2>
+          <button class="icon-btn" data-close aria-label="Close">Close</button>
         </header>
         <div id="drawer-content"></div>
       </div>
@@ -138,32 +136,32 @@
       <div class="modal-backdrop" data-modal-close></div>
       <form id="new-form" class="modal-card">
         <header class="modal-head">
-          <h2>Nuova registrazione</h2>
-          <button type="button" class="icon-btn" data-modal-close aria-label="Chiudi">✕</button>
+          <h2>New recording</h2>
+          <button type="button" class="icon-btn" data-modal-close aria-label="Close">Close</button>
         </header>
         <div class="modal-body">
           <label class="field">
-            <span>URL iniziale <em>(opzionale)</em></span>
-            <input id="m-url" type="text" placeholder="https://esempio.it" autocomplete="off" />
+            <span>Initial URL <em>(optional)</em></span>
+            <input id="m-url" type="text" placeholder="https://example.com" autocomplete="off" />
           </label>
           <label class="field">
-            <span>Etichetta <em>(opzionale)</em></span>
-            <input id="m-label" type="text" placeholder="es. login fineco" autocomplete="off" />
+            <span>Label <em>(optional)</em></span>
+            <input id="m-label" type="text" placeholder="e.g. fineco login" autocomplete="off" />
           </label>
           <div class="field-row">
             <label class="field">
-              <span>Profilo</span>
+              <span>Profile</span>
               <select id="m-profile">
-                <option value="persistent">persistent — tiene i login</option>
-                <option value="fresh">fresh — pulito e isolato</option>
+                <option value="persistent">persistent — keeps logins</option>
+                <option value="fresh">fresh — clean &amp; isolated</option>
               </select>
             </label>
             <label class="check">
-              <input id="m-bodies" type="checkbox" checked /> Cattura body risposte
+              <input id="m-bodies" type="checkbox" checked /> Capture response bodies
             </label>
           </div>
           <details class="advanced">
-            <summary>Opzioni avanzate</summary>
+            <summary>Advanced options</summary>
             <div class="field-row">
               <label class="field">
                 <span>Channel</span>
@@ -171,16 +169,16 @@
               </label>
               <label class="field">
                 <span>Attach to port</span>
-                <input id="m-port" type="number" min="1" placeholder="es. 9222" />
+                <input id="m-port" type="number" min="1" placeholder="e.g. 9222" />
               </label>
             </div>
-            <p class="hint">Attach: registra un Chrome già aperto con <code>--remote-debugging-port=PORT</code> invece di lanciarne uno.</p>
+            <p class="hint">Attach: record a Chrome already running with <code>--remote-debugging-port=PORT</code> instead of launching one.</p>
           </details>
           <p id="m-error" class="err" hidden></p>
         </div>
         <footer class="modal-foot">
-          <button type="button" class="btn ghost" data-modal-close>Annulla</button>
-          <button type="submit" id="m-submit" class="btn primary"><span class="dot-rec"></span> Avvia</button>
+          <button type="button" class="btn ghost" data-modal-close>Cancel</button>
+          <button type="submit" id="m-submit" class="btn primary">Start</button>
         </footer>
       </form>
     </div>

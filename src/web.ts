@@ -363,10 +363,10 @@ function openInBrowser(targetUrl: string): void {
   const args = process.platform === "win32" ? ["/c", "start", "", targetUrl] : [targetUrl];
   try {
     const child = spawn(cmd, args, { stdio: "ignore", detached: true });
-    child.on("error", () => log(`Apri manualmente: ${targetUrl}`));
+    child.on("error", () => log(`Open manually: ${targetUrl}`));
     child.unref();
   } catch {
-    log(`Apri manualmente: ${targetUrl}`);
+    log(`Open manually: ${targetUrl}`);
   }
 }
 
@@ -410,7 +410,7 @@ function start(): void {
 
   server.on("error", (err: NodeJS.ErrnoException) => {
     if (err.code === "EADDRINUSE") {
-      logError(`La porta ${port} è occupata. Imposta HAR_RECORDER_UI_PORT=<porta libera> e riprova.`);
+      logError(`Port ${port} is in use. Set HAR_RECORDER_UI_PORT=<free port> and try again.`);
       process.exit(1);
     }
     logError("server error", err);
@@ -420,7 +420,7 @@ function start(): void {
   server.listen(port, HOST, () => {
     const targetUrl = `http://${HOST}:${port}/`;
     log(`${SERVER_NAME} dashboard v${SERVER_VERSION} → ${targetUrl}`);
-    log(`Registrazioni da: ${recordingRoot()}`);
+    log(`Recordings from: ${recordingRoot()}`);
     if (process.env.HAR_RECORDER_UI_NO_OPEN !== "1") openInBrowser(targetUrl);
   });
 

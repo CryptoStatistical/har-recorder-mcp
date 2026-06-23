@@ -90,7 +90,7 @@ export class RecordingManager {
     if (this.session) {
       if (this.session.status === "recording") {
         throw new Error(
-          `Una registrazione è già attiva (${this.session.id}). Ferma con stop_recording o close_browser prima di iniziarne un'altra.`,
+          `A recording is already active (${this.session.id}). Stop it with stop_recording or close_browser before starting another.`,
         );
       }
       await this.closeBrowser();
@@ -181,8 +181,8 @@ export class RecordingManager {
       captureBodies,
       message:
         mode === "attach"
-          ? "Connesso al browser esistente. Naviga liberamente: catturo tutto (pagine, iframe, worker, service worker). stop_recording per assemblare l'HAR."
-          : "Chrome è aperto. Naviga e completa il login manualmente. Catturo tutto (incl. service worker). mark_checkpoint per i passaggi, stop_recording per l'HAR.",
+          ? "Connected to the existing browser. Browse freely: everything is captured (pages, iframes, workers, service workers). Call stop_recording to assemble the HAR."
+          : "Chrome is open. Navigate and complete the login manually. Everything is captured (incl. service workers). Use mark_checkpoint for steps, stop_recording for the HAR.",
     };
   }
 
@@ -203,11 +203,11 @@ export class RecordingManager {
         return await chromium.launchPersistentContext(userDataDir, { ...baseOpts, channel: ch as string | undefined });
       } catch (err) {
         lastErr = err;
-        log(`launch con channel=${ch ?? "chromium"} fallito, provo il prossimo…`);
+        log(`launch with channel=${ch ?? "chromium"} failed, trying the next…`);
       }
     }
     throw new Error(
-      `Impossibile avviare Chrome/Chromium. Installa Google Chrome oppure esegui 'npm run install:browser'. Dettaglio: ${
+      `Could not launch Chrome/Chromium. Install Google Chrome or run 'npm run install:browser'. Detail: ${
         lastErr instanceof Error ? lastErr.message : String(lastErr)
       }`,
     );
@@ -271,7 +271,7 @@ export class RecordingManager {
         return { ...idx, browserOpen: false, metadata: meta };
       }
     }
-    return { status: "idle", message: "Nessuna registrazione attiva." };
+    return { status: "idle", message: "No active recording." };
   }
 
   markCheckpoint(id: string | undefined, label: string): Checkpoint {
@@ -284,8 +284,8 @@ export class RecordingManager {
 
   private requireRecording(id?: string): LiveSession {
     const s = this.session;
-    if (!s || s.status !== "recording") throw new Error("Nessuna registrazione attiva.");
-    if (id && id !== s.id) throw new Error(`recordingId ${id} non corrisponde alla sessione attiva ${s.id}.`);
+    if (!s || s.status !== "recording") throw new Error("No active recording.");
+    if (id && id !== s.id) throw new Error(`recordingId ${id} does not match the active session ${s.id}.`);
     return s;
   }
 
@@ -386,16 +386,16 @@ export class RecordingManager {
           parts: artifacts.zipParts,
           reconstruct: `cat ${dirName}.zip.* > ${dirName}.zip && unzip ${dirName}.zip`,
           note:
-            `Lo ZIP (${zipMB} MB) supera 20 MB: è stato diviso in ${artifacts.zipParts.length} parti ` +
-            `da ≤20 MB (${dirName}.zip.001…${String(artifacts.zipParts.length).padStart(3, "0")}). ` +
-            `Per passarlo invia TUTTE le parti, poi ricostruiscile con il comando 'reconstruct' ` +
-            `PRIMA di aprire session.har (l'HAR completo può essere molto grande).`,
+            `The ZIP (${zipMB} MB) exceeds 20 MB: it was split into ${artifacts.zipParts.length} parts ` +
+            `of ≤20 MB (${dirName}.zip.001…${String(artifacts.zipParts.length).padStart(3, "0")}). ` +
+            `To transfer it, send ALL the parts, then rejoin them with the 'reconstruct' command ` +
+            `BEFORE opening session.har (the full HAR can be very large).`,
         }
       : {
           split: false as const,
           zipBytes: artifacts.zipBytes,
           partLimitMB: 20,
-          note: `Lo ZIP (${zipMB} MB) è sotto i 20 MB: passalo intero (${dirName}.zip), nessuno split necessario.`,
+          note: `The ZIP (${zipMB} MB) is under 20 MB: send it whole (${dirName}.zip), no split needed.`,
         };
 
     return {
@@ -412,9 +412,9 @@ export class RecordingManager {
       files: metadata.files,
       transfer,
       message:
-        "HAR assemblato (tutti i target: pagine, iframe, worker, service worker). Il browser resta aperto: ispeziona con list_requests/get_request/get_cookies o chiudi con close_browser." +
+        "HAR assembled (all targets: pages, iframes, workers, service workers). The browser stays open: inspect with list_requests/get_request/get_cookies or close it with close_browser." +
         (split
-          ? ` ⚠️ Pacchetto >20 MB: vedi 'transfer' — passa le ${artifacts.zipParts.length} parti ${dirName}.zip.NNN e ricostruiscile prima di aprire l'HAR.`
+          ? ` Bundle >20 MB: see 'transfer' — send the ${artifacts.zipParts.length} parts ${dirName}.zip.NNN and rejoin them before opening the HAR.`
           : ""),
     };
   }
@@ -463,8 +463,8 @@ export class RecordingManager {
       return { har: buildHar(this.session.store, { browser: this.session.browserInfo }), live: true };
     }
     const idx = await findIndexEntry(id);
-    if (!idx) throw new Error(`Registrazione non trovata: ${id}`);
-    if (idx.status !== "stopped") throw new Error(`La registrazione ${id} non è ancora stata fermata.`);
+    if (!idx) throw new Error(`Recording not found: ${id}`);
+    if (idx.status !== "stopped") throw new Error(`Recording ${id} has not been stopped yet.`);
     return { har: await readHar(idx.dir), live: false, dir: idx.dir };
   }
 
@@ -503,7 +503,7 @@ export class RecordingManager {
   async getRequest(id: string, selector: { index?: number; requestId?: string; urlContains?: string }): Promise<HarEntry> {
     const { har } = await this.resolveHar(id);
     const entry = selectEntry(har, selector);
-    if (!entry) throw new Error("Richiesta non trovata con il selettore fornito.");
+    if (!entry) throw new Error("Request not found for the given selector.");
     return entry;
   }
 
@@ -514,7 +514,7 @@ export class RecordingManager {
       if (!cookies.length) cookies = cookiesFromHar(buildHar(this.session.store, { browser: this.session.browserInfo }));
     } else {
       const idx = await findIndexEntry(id);
-      if (!idx) throw new Error(`Registrazione non trovata: ${id}`);
+      if (!idx) throw new Error(`Recording not found: ${id}`);
       cookies = await readCookies(idx.dir);
       if (!cookies.length) {
         try {
@@ -539,9 +539,9 @@ export class RecordingManager {
       return { recordingId: id, note, applied: "live", notes: this.session.notes };
     }
     const idx = await findIndexEntry(id);
-    if (!idx) throw new Error(`Registrazione non trovata: ${id}`);
+    if (!idx) throw new Error(`Recording not found: ${id}`);
     const meta = await readMetadata(idx.dir);
-    if (!meta) throw new Error(`metadata.json mancante per ${id}.`);
+    if (!meta) throw new Error(`metadata.json missing for ${id}.`);
     meta.notes = [...(meta.notes ?? []), note];
     await writeMetadata(idx.dir, meta);
     try {
@@ -562,10 +562,10 @@ export class RecordingManager {
    */
   async deleteRecording(id: string): Promise<{ deleted: boolean; recordingId: string }> {
     if (this.activeRecordingId() === id) {
-      throw new Error("La registrazione è ancora attiva: fermala (stop) e chiudi il browser prima di cancellarla.");
+      throw new Error("The recording is still active: stop it and close the browser before deleting it.");
     }
     const idx = await findIndexEntry(id);
-    if (!idx) throw new Error(`Registrazione non trovata: ${id}`);
+    if (!idx) throw new Error(`Recording not found: ${id}`);
     if (this.session && this.session.id === idx.id) await this.closeBrowser(idx.id);
     await deleteRecording(idx.dir);
     log(`deleted [${idx.id}] → ${idx.dir}`);

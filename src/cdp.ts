@@ -25,12 +25,12 @@ export class RawCdp {
     this.ws = new WebSocket(wsUrl);
     await new Promise<void>((resolve, reject) => {
       this.ws.onopen = () => resolve();
-      this.ws.onerror = () => reject(new Error(`CDP websocket non raggiungibile: ${wsUrl}`));
+      this.ws.onerror = () => reject(new Error(`CDP websocket unreachable: ${wsUrl}`));
     });
     this.ws.onmessage = (ev: MessageEvent) => this.dispatch(String(ev.data));
     this.ws.onclose = () => {
       this.closed = true;
-      for (const { reject } of this.pending.values()) reject(new Error("Connessione CDP chiusa"));
+      for (const { reject } of this.pending.values()) reject(new Error("CDP connection closed"));
       this.pending.clear();
     };
   }
@@ -66,7 +66,7 @@ export class RawCdp {
   }
 
   send(method: string, params: any = {}, sessionId?: string): Promise<any> {
-    if (this.closed) return Promise.reject(new Error("CDP chiuso"));
+    if (this.closed) return Promise.reject(new Error("CDP closed"));
     const id = this.nextId++;
     const payload: any = { id, method, params };
     if (sessionId) payload.sessionId = sessionId;
@@ -250,13 +250,13 @@ export async function readDevtoolsWs(userDataDir: string, retries = 30): Promise
     }
     await sleep(100);
   }
-  throw new Error("DevToolsActivePort non trovato: impossibile aprire l'endpoint CDP raw.");
+  throw new Error("DevToolsActivePort not found: cannot open the raw CDP endpoint.");
 }
 
 /** Resolve the browser-level ws endpoint from an existing debugging port. */
 export async function browserWsFromPort(port: number): Promise<string> {
   const res = await fetch(`http://127.0.0.1:${port}/json/version`);
   const json = (await res.json()) as { webSocketDebuggerUrl?: string };
-  if (!json.webSocketDebuggerUrl) throw new Error(`Nessun webSocketDebuggerUrl su 127.0.0.1:${port}/json/version`);
+  if (!json.webSocketDebuggerUrl) throw new Error(`No webSocketDebuggerUrl at 127.0.0.1:${port}/json/version`);
   return json.webSocketDebuggerUrl;
 }

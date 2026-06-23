@@ -19,7 +19,7 @@ function ok(data: unknown): ToolResult {
 function fail(err: unknown): ToolResult {
   const msg = err instanceof Error ? err.message : String(err);
   logError(msg);
-  return { content: [{ type: "text", text: `Errore: ${msg}` }], isError: true };
+  return { content: [{ type: "text", text: `Error: ${msg}` }], isError: true };
 }
 
 async function run(fn: () => Promise<unknown>): Promise<ToolResult> {
@@ -290,10 +290,10 @@ server.registerPrompt(
 async function main(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  log(`${SERVER_NAME} v${SERVER_VERSION} pronto (stdio).`);
+  log(`${SERVER_NAME} v${SERVER_VERSION} ready (stdio).`);
 
   const shutdown = async (signal: string) => {
-    log(`ricevuto ${signal}, chiusura…`);
+    log(`received ${signal}, shutting down…`);
     try {
       await manager.dispose();
     } finally {

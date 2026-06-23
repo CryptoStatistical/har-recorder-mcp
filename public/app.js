@@ -92,7 +92,7 @@ async function loadRecordings() {
     renderRecordings();
   } catch (err) {
     list.innerHTML = "";
-    list.appendChild(el("div", { class: "err", text: "Errore: " + err.message }));
+    list.appendChild(el("div", { class: "err", text: "Error: " + err.message }));
   }
 }
 
@@ -104,7 +104,7 @@ function renderRecordings() {
     !filter || (r.name + " " + (r.title || "") + " " + (r.host || "") + " " + (r.label || "")).toLowerCase().includes(filter)
   );
   if (!items.length) {
-    list.appendChild(el("div", { class: "muted", text: "Nessuna registrazione." }));
+    list.appendChild(el("div", { class: "muted", text: "No recordings." }));
     return;
   }
   for (const r of items) {
@@ -117,12 +117,12 @@ function renderRecordings() {
     }, [
       live
         ? el("span", { class: "ri-live" }, [el("span", { class: "live-pulse" }), "REC"])
-        : el("button", { class: "ri-del", title: "Elimina dal disco", text: "🗑", onclick: (e) => { e.stopPropagation(); deleteRecording(r.recordingId, niceName); } }),
+        : el("button", { class: "ri-del", title: "Delete from disk", text: "Delete", onclick: (e) => { e.stopPropagation(); deleteRecording(r.recordingId, niceName); } }),
       el("div", { class: "ri-title", text: niceName }),
       el("div", { class: "ri-sub", text: (r.host || hostOf(r.url) || "—") + " · " + fmtDate(r.startedAt) }),
       el("div", { class: "ri-stats" }, [
         el("span", { text: (r.requestCount ?? 0) + " req" }),
-        el("span", { text: (r.cookieCount ?? 0) + " cookie" }),
+        el("span", { text: (r.cookieCount ?? 0) + " cookies" }),
       ]),
     ]);
     list.appendChild(item);
@@ -146,7 +146,7 @@ async function selectRecording(id) {
   try {
     state.meta = await getJSON("/api/recordings/" + encodeURIComponent(id));
   } catch (err) {
-    $("#d-title").textContent = "Errore";
+    $("#d-title").textContent = "Error";
     $("#d-meta").textContent = err.message;
     return;
   }
@@ -164,14 +164,14 @@ function renderHeader() {
   const badges = $("#d-badges");
   badges.innerHTML = "";
   const add = (n) => badges.appendChild(n);
-  if (m.live) add(el("span", { class: "badge rec" }, [el("b", { text: "● REC" })]));
-  add(badgeKV("richieste", m.requestCount));
-  if (m.cookieCount != null) add(badgeKV("cookie", m.cookieCount));
+  if (m.live) add(el("span", { class: "badge rec" }, [el("b", { text: "REC" })]));
+  add(badgeKV("requests", m.requestCount));
+  if (m.cookieCount != null) add(badgeKV("cookies", m.cookieCount));
   if (m.httpOnlyCookieCount) add(badgeKV("http-only", m.httpOnlyCookieCount));
-  add(badgeKV("durata", fmtDur(m.durationMs)));
-  add(badgeKV("profilo", m.profile));
+  add(badgeKV("duration", fmtDur(m.durationMs)));
+  add(badgeKV("profile", m.profile));
   if (m.zipBytes) add(badgeKV("zip", fmtBytes(m.zipBytes)));
-  if (m.zipParts && m.zipParts.length) add(el("span", { class: "badge warn", text: "split ×" + m.zipParts.length }));
+  if (m.zipParts && m.zipParts.length) add(el("span", { class: "badge warn", text: "split x" + m.zipParts.length }));
   $("#d-delete").hidden = !!m.live; // can't delete a recording while it's still recording
 }
 function badgeKV(k, v) { return el("span", { class: "badge" }, [k + " ", el("b", { text: String(v ?? "—") })]); }
@@ -183,33 +183,33 @@ function renderOverview() {
 
   const cards = el("div", { class: "cards" }, [
     card("ID", metaId(m), true),
-    card("URL iniziale", m.url || "—", true),
+    card("Initial URL", m.url || "—", true),
     card("Browser", m.browser ? m.browser.name + " " + m.browser.version : "—", true),
-    card("Body catturati", m.captureBodies ? "sì" : "no"),
-    card("Avviata", fmtDate(m.startedAt), true),
-    card("Fermata", m.live ? "in corso…" : fmtDate(m.stoppedAt), true),
+    card("Response bodies", m.captureBodies ? "yes" : "no"),
+    card("Started", fmtDate(m.startedAt), true),
+    card("Stopped", m.live ? "in progress…" : fmtDate(m.stoppedAt), true),
   ]);
   panel.appendChild(cards);
 
   if (m.live && m.lastRequestUrl) {
-    panel.appendChild(section("Ultima richiesta", el("div", { class: "chips" }, el("span", { class: "chip", text: m.lastRequestUrl }))));
+    panel.appendChild(section("Last request", el("div", { class: "chips" }, el("span", { class: "chip", text: m.lastRequestUrl }))));
   }
   if (m.live && m.targets && m.targets.length) {
-    panel.appendChild(section("Target attivi", el("div", { class: "chips" },
+    panel.appendChild(section("Active targets", el("div", { class: "chips" },
       m.targets.slice(0, 30).map((t) => el("span", { class: "chip", text: (t.type || "?") + ": " + (t.title || t.url || "—") })))));
   }
   if (m.hosts && m.hosts.length) {
-    panel.appendChild(section("Host contattati", el("div", { class: "chips" }, m.hosts.slice(0, 40).map((h) => el("span", { class: "chip", text: h })))));
+    panel.appendChild(section("Hosts contacted", el("div", { class: "chips" }, m.hosts.slice(0, 40).map((h) => el("span", { class: "chip", text: h })))));
   }
   if (m.checkpoints && m.checkpoints.length) {
-    panel.appendChild(section("Checkpoint", el("ul", { class: "ov-list" },
+    panel.appendChild(section("Checkpoints", el("ul", { class: "ov-list" },
       m.checkpoints.map((c) => el("li", {}, [el("code", { text: c.at }), " — " + c.label])))));
   }
   if (m.titles && m.titles.length) {
-    panel.appendChild(section("Titoli pagina", el("ul", { class: "ov-list" }, m.titles.slice(0, 20).map((t) => el("li", { text: t })))));
+    panel.appendChild(section("Page titles", el("ul", { class: "ov-list" }, m.titles.slice(0, 20).map((t) => el("li", { text: t })))));
   }
   if (m.notes && m.notes.length) {
-    panel.appendChild(section("Annotazioni", el("ul", { class: "ov-list" }, m.notes.map((n) => el("li", { text: n })))));
+    panel.appendChild(section("Notes", el("ul", { class: "ov-list" }, m.notes.map((n) => el("li", { text: n })))));
   }
 }
 function card(k, v, small) { return el("div", { class: "card" }, [el("div", { class: "k", text: k }), el("div", { class: "v" + (small ? " sm" : ""), text: String(v) })]); }
@@ -251,7 +251,7 @@ async function loadRequests(initial) {
   params.set("limit", "1000");
 
   body.innerHTML = "";
-  body.appendChild(el("tr", {}, el("td", { colspan: "7", class: "loading", text: "Carico…" })));
+  body.appendChild(el("tr", {}, el("td", { colspan: "7", class: "loading", text: "Loading…" })));
   try {
     const data = await getJSON("/api/recordings/" + encodeURIComponent(state.selected) + "/requests?" + params);
     if (initial) populateRequestFilters(data.requests);
@@ -259,7 +259,7 @@ async function loadRequests(initial) {
     state.loaded.requests = true;
   } catch (err) {
     body.innerHTML = "";
-    body.appendChild(el("tr", {}, el("td", { colspan: "7", class: "err", text: "Errore: " + err.message })));
+    body.appendChild(el("tr", {}, el("td", { colspan: "7", class: "err", text: "Error: " + err.message })));
   }
 }
 
@@ -276,9 +276,9 @@ function populateRequestFilters(rows) {
 function renderRequests(data) {
   const body = $("#req-body");
   body.innerHTML = "";
-  $("#req-count").textContent = data.matched + " / " + data.total + (data.matched > data.requests.length ? "  (mostrate " + data.requests.length + ")" : "");
+  $("#req-count").textContent = data.matched + " / " + data.total + (data.matched > data.requests.length ? "  (showing " + data.requests.length + ")" : "");
   if (!data.requests.length) {
-    body.appendChild(el("tr", {}, el("td", { colspan: "7", class: "muted", text: "Nessuna richiesta." })));
+    body.appendChild(el("tr", {}, el("td", { colspan: "7", class: "muted", text: "No requests." })));
     return;
   }
   for (const r of data.requests) {
@@ -309,16 +309,16 @@ $("#f-reset").addEventListener("click", () => {
 // ===========================================================================
 async function openRequest(index) {
   $("#drawer").hidden = false;
-  $("#drawer-title").textContent = "Richiesta #" + index;
+  $("#drawer-title").textContent = "Request #" + index;
   const content = $("#drawer-content");
   content.innerHTML = "";
-  content.appendChild(el("div", { class: "loading", text: "Carico…" }));
+  content.appendChild(el("div", { class: "loading", text: "Loading…" }));
   try {
     const e = await getJSON("/api/recordings/" + encodeURIComponent(state.selected) + "/request?index=" + index);
     renderRequestDetail(e, index);
   } catch (err) {
     content.innerHTML = "";
-    content.appendChild(el("div", { class: "err", text: "Errore: " + err.message }));
+    content.appendChild(el("div", { class: "err", text: "Error: " + err.message }));
   }
 }
 
@@ -327,29 +327,29 @@ function renderRequestDetail(e, index) {
   const content = $("#drawer-content");
   content.innerHTML = "";
 
-  content.appendChild(kvSection("Generale", [
+  content.appendChild(kvSection("General", [
     ["URL", e.request.url],
-    ["Metodo", e.request.method],
+    ["Method", e.request.method],
     ["Status", e.response.status + " " + (e.response.statusText || "")],
-    ["Tipo", e._resourceType || "—"],
+    ["Type", e._resourceType || "—"],
     ["Mime", e.response.content.mimeType || "—"],
     ["Remote IP", e.serverIPAddress || "—"],
-    ["Da service worker", e._fromServiceWorker ? "sì" : "no"],
-    ["Da cache", e._fromDiskCache ? "sì" : "no"],
-    e._error ? ["Errore", e._error] : null,
+    ["From service worker", e._fromServiceWorker ? "yes" : "no"],
+    ["From cache", e._fromDiskCache ? "yes" : "no"],
+    e._error ? ["Error", e._error] : null,
   ]));
 
   if (e.request.queryString && e.request.queryString.length) {
     content.appendChild(kvSection("Query string", e.request.queryString.map((q) => [q.name, q.value])));
   }
-  content.appendChild(headerSection("Header richiesta", e.request.headers));
+  content.appendChild(headerSection("Request headers", e.request.headers));
   if (e.request.postData && e.request.postData.text != null) {
     content.appendChild(bodySection("POST data (" + (e.request.postData.mimeType || "") + ")", e.request.postData.text));
   }
-  content.appendChild(headerSection("Header risposta", e.response.headers));
+  content.appendChild(headerSection("Response headers", e.response.headers));
 
   if (e.request.cookies && e.request.cookies.length) {
-    content.appendChild(kvSection("Cookie inviati", e.request.cookies.map((c) => [c.name, c.value])));
+    content.appendChild(kvSection("Cookies sent", e.request.cookies.map((c) => [c.name, c.value])));
   }
   if (e.response.cookies && e.response.cookies.length) {
     content.appendChild(kvSection("Set-Cookie", e.response.cookies.map((c) => [c.name, c.value + (c.httpOnly ? "  (httpOnly)" : "")])));
@@ -361,12 +361,12 @@ function renderRequestDetail(e, index) {
     const c = e.response.content;
     if (c.text != null) {
       const isB64 = c.encoding === "base64";
-      const preview = isB64 ? "(binario, base64 — " + fmtBytes(c.size) + ")" : c.text;
-      const sect = bodySection("Body risposta (" + (c.mimeType || "").split(";")[0] + ")", preview.length > 50000 ? preview.slice(0, 50000) + "\n…(troncato)" : preview);
-      if (e._bodyTruncated) sect.appendChild(el("p", { class: "hint", text: "Body troncato in cattura." }));
+      const preview = isB64 ? "(binary, base64 — " + fmtBytes(c.size) + ")" : c.text;
+      const sect = bodySection("Response body (" + (c.mimeType || "").split(";")[0] + ")", preview.length > 50000 ? preview.slice(0, 50000) + "\n…(truncated)" : preview);
+      if (e._bodyTruncated) sect.appendChild(el("p", { class: "hint", text: "Body truncated at capture." }));
       content.appendChild(sect);
     } else {
-      content.appendChild(kvSection("Body risposta", [["", "(nessun body catturato — " + fmtBytes(c.size) + ")"]]));
+      content.appendChild(kvSection("Response body", [["", "(no body captured — " + fmtBytes(c.size) + ")"]]));
     }
   }
 }
@@ -383,15 +383,15 @@ function kvSection(title, pairs) {
 function headerSection(title, headers) { return kvSection(title + " (" + (headers ? headers.length : 0) + ")", (headers || []).map((h) => [h.name, h.value])); }
 function bodySection(title, text) { return el("div", { class: "kv-section" }, [el("h4", { text: title }), el("pre", { class: "body-box", text: text })]); }
 function wsSection(frames, truncated) {
-  const sect = el("div", { class: "kv-section" }, [el("h4", { text: "WebSocket — " + frames.length + " frame" })]);
+  const sect = el("div", { class: "kv-section" }, [el("h4", { text: "WebSocket — " + frames.length + " frames" })]);
   const box = el("pre", { class: "body-box" });
   box.textContent = frames.slice(0, 200).map((f) => {
-    const dir = f.type === "send" || f.fromClient ? "→" : "←";
+    const dir = f.type === "send" || f.fromClient ? "->" : "<-";
     const data = typeof f.data === "string" ? f.data : JSON.stringify(f.data);
     return dir + " " + (data.length > 400 ? data.slice(0, 400) + "…" : data);
   }).join("\n");
   sect.appendChild(box);
-  if (truncated || frames.length > 200) sect.appendChild(el("p", { class: "hint", text: "Mostrati i primi " + Math.min(200, frames.length) + " frame." }));
+  if (truncated || frames.length > 200) sect.appendChild(el("p", { class: "hint", text: "Showing the first " + Math.min(200, frames.length) + " frames." }));
   return sect;
 }
 
@@ -404,7 +404,7 @@ async function loadCookies() {
   const body = $("#cookie-body");
   const domain = $("#c-domain").value.trim();
   body.innerHTML = "";
-  body.appendChild(el("tr", {}, el("td", { colspan: "8", class: "loading", text: "Carico…" })));
+  body.appendChild(el("tr", {}, el("td", { colspan: "8", class: "loading", text: "Loading…" })));
   try {
     const q = domain ? "?domain=" + encodeURIComponent(domain) : "";
     const data = await getJSON("/api/recordings/" + encodeURIComponent(state.selected) + "/cookies" + q);
@@ -412,17 +412,17 @@ async function loadCookies() {
     state.loaded.cookies = true;
   } catch (err) {
     body.innerHTML = "";
-    body.appendChild(el("tr", {}, el("td", { colspan: "8", class: "err", text: "Errore: " + err.message })));
+    body.appendChild(el("tr", {}, el("td", { colspan: "8", class: "err", text: "Error: " + err.message })));
   }
 }
 
 function renderCookies(data) {
   const body = $("#cookie-body");
   body.innerHTML = "";
-  $("#cookie-count").textContent = data.total + " cookie · " + data.httpOnly + " http-only · " + data.secure + " secure";
+  $("#cookie-count").textContent = data.total + " cookies · " + data.httpOnly + " http-only · " + data.secure + " secure";
   const reveal = $("#c-reveal").checked;
   if (!data.cookies.length) {
-    body.appendChild(el("tr", {}, el("td", { colspan: "8", class: "muted", text: "Nessun cookie." })));
+    body.appendChild(el("tr", {}, el("td", { colspan: "8", class: "muted", text: "No cookies." })));
     return;
   }
   for (const c of data.cookies) {
@@ -439,7 +439,7 @@ function renderCookies(data) {
     ]));
   }
 }
-function boolCell(v) { return el("span", { class: v ? "yes" : "no", text: v ? "✓" : "—" }); }
+function boolCell(v) { return el("span", { class: v ? "yes" : "no", text: v ? "yes" : "—" }); }
 
 $("#c-apply").addEventListener("click", loadCookies);
 $("#c-domain").addEventListener("keydown", (e) => { if (e.key === "Enter") loadCookies(); });
@@ -450,64 +450,25 @@ $("#c-reveal").addEventListener("change", () => { if (state.loaded.cookies) load
 // ===========================================================================
 async function loadSummary() {
   const pre = $("#summary-pre");
-  pre.textContent = "Carico…";
-  if (state.meta && state.meta.live) { pre.textContent = "Il summary viene generato allo stop della registrazione."; return; }
+  pre.textContent = "Loading…";
+  if (state.meta && state.meta.live) { pre.textContent = "The summary is generated when the recording is stopped."; return; }
   try {
     const res = await fetch("/api/recordings/" + encodeURIComponent(state.selected) + "/summary");
-    pre.textContent = res.ok ? await res.text() : "summary.md non disponibile.";
+    pre.textContent = res.ok ? await res.text() : "summary.md not available.";
     state.loaded.summary = true;
   } catch (err) {
-    pre.textContent = "Errore: " + err.message;
+    pre.textContent = "Error: " + err.message;
   }
 }
-
-// ===========================================================================
-// control: new recording modal
-// ===========================================================================
-function openModal() { $("#m-error").hidden = true; $("#modal").hidden = false; setTimeout(() => $("#m-url").focus(), 30); }
-function closeModal() { $("#modal").hidden = true; }
-$("#new-rec").addEventListener("click", openModal);
-for (const c of document.querySelectorAll("[data-modal-close]")) c.addEventListener("click", closeModal);
-
-$("#new-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const submit = $("#m-submit");
-  const errEl = $("#m-error");
-  errEl.hidden = true;
-  submit.disabled = true;
-  const body = {
-    url: $("#m-url").value.trim() || undefined,
-    label: $("#m-label").value.trim() || undefined,
-    profile: $("#m-profile").value,
-    captureBodies: $("#m-bodies").checked,
-  };
-  const ch = $("#m-channel").value.trim();
-  if (ch) body.channel = ch;
-  const port = $("#m-port").value.trim();
-  if (port) body.attachToPort = Number(port);
-  try {
-    const r = await postJSON("/api/recordings", body);
-    closeModal();
-    toast("Registrazione avviata — naviga nel browser aperto.", "ok");
-    await refreshStatus();
-    await loadRecordings();
-    selectRecording(r.recordingId);
-  } catch (err) {
-    errEl.textContent = err.message;
-    errEl.hidden = false;
-  } finally {
-    submit.disabled = false;
-  }
-});
 
 // ===========================================================================
 // control: delete a recording from disk
 // ===========================================================================
 async function deleteRecording(id, name) {
-  if (!confirm("Eliminare definitivamente dal disco?\n\n" + (name || id) + "\n\nVengono rimossi HAR, cookie, summary e zip. Non è reversibile.")) return;
+  if (!confirm("Permanently delete from disk?\n\n" + (name || id) + "\n\nThis removes the HAR, cookies, summary and zip. It cannot be undone.")) return;
   try {
     await postJSON("/api/recordings/" + encodeURIComponent(id) + "/delete", {});
-    toast("Registrazione eliminata.", "ok");
+    toast("Recording deleted.", "ok");
     if (state.selected === id) {
       state.selected = null;
       state.meta = null;
@@ -537,7 +498,7 @@ async function refreshStatus() {
     bar.hidden = false;
     state.activeId = s.recordingId;
     $("#live-host").textContent = hostOf(s.url || "") || s.label || s.recordingId;
-    $("#live-sub").textContent = s.lastRequestUrl || s.url || "(in attesa di traffico…)";
+    $("#live-sub").textContent = s.lastRequestUrl || s.url || "(waiting for traffic…)";
     $("#live-reqs").textContent = s.requestCount ?? 0;
     $("#live-dur").textContent = fmtDur(s.durationMs);
   } else {
@@ -550,9 +511,9 @@ async function refreshStatus() {
 
 $("#lb-checkpoint").addEventListener("click", async () => {
   if (!state.activeId) return;
-  const label = prompt("Etichetta checkpoint:", "login fatto");
+  const label = prompt("Checkpoint label:", "login done");
   if (!label) return;
-  try { await postJSON("/api/recordings/" + encodeURIComponent(state.activeId) + "/checkpoint", { label }); toast("Checkpoint segnato: " + label, "ok"); }
+  try { await postJSON("/api/recordings/" + encodeURIComponent(state.activeId) + "/checkpoint", { label }); toast("Checkpoint marked: " + label, "ok"); }
   catch (e) { toast(e.message, "err"); }
 });
 
@@ -561,9 +522,9 @@ $("#lb-stop").addEventListener("click", async () => {
   const id = state.activeId;
   $("#lb-stop").disabled = true;
   try {
-    toast("Assemblo l'HAR…");
+    toast("Assembling the HAR…");
     const r = await postJSON("/api/recordings/" + encodeURIComponent(id) + "/stop", {});
-    toast("Salvata: " + r.name + " — " + r.requestCount + " richieste.", "ok");
+    toast("Saved: " + r.name + " — " + r.requestCount + " requests.", "ok");
     await refreshStatus();
     await loadRecordings();
     selectRecording(r.recordingId);
@@ -573,13 +534,52 @@ $("#lb-stop").addEventListener("click", async () => {
 
 $("#lb-close").addEventListener("click", async () => {
   if (!state.activeId) return;
-  if (!confirm("Chiudere il browser?\nSe la registrazione è ancora attiva, la cattura non salvata va persa. Fai prima Stop & salva.")) return;
+  if (!confirm("Close the browser?\nIf the recording is still active, the unsaved capture is lost. Use Stop & save first.")) return;
   try {
     await postJSON("/api/recordings/" + encodeURIComponent(state.activeId) + "/close", {});
-    toast("Browser chiuso.", "ok");
+    toast("Browser closed.", "ok");
     await refreshStatus();
     await loadRecordings();
   } catch (e) { toast(e.message, "err"); }
+});
+
+// ===========================================================================
+// control: new recording modal
+// ===========================================================================
+function openModal() { $("#m-error").hidden = true; $("#modal").hidden = false; setTimeout(() => $("#m-url").focus(), 30); }
+function closeModal() { $("#modal").hidden = true; }
+$("#new-rec").addEventListener("click", openModal);
+for (const c of document.querySelectorAll("[data-modal-close]")) c.addEventListener("click", closeModal);
+
+$("#new-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const submit = $("#m-submit");
+  const errEl = $("#m-error");
+  errEl.hidden = true;
+  submit.disabled = true;
+  const body = {
+    url: $("#m-url").value.trim() || undefined,
+    label: $("#m-label").value.trim() || undefined,
+    profile: $("#m-profile").value,
+    captureBodies: $("#m-bodies").checked,
+  };
+  const ch = $("#m-channel").value.trim();
+  if (ch) body.channel = ch;
+  const port = $("#m-port").value.trim();
+  if (port) body.attachToPort = Number(port);
+  try {
+    const r = await postJSON("/api/recordings", body);
+    closeModal();
+    toast("Recording started — browse in the opened browser.", "ok");
+    await refreshStatus();
+    await loadRecordings();
+    selectRecording(r.recordingId);
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.hidden = false;
+  } finally {
+    submit.disabled = false;
+  }
 });
 
 // ===========================================================================
