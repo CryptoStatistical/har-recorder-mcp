@@ -7,7 +7,7 @@ import { persistentProfileDir, recordingRoot } from "./config.js";
 import { CaptureStore } from "./capture.js";
 import type { HarCookie } from "./capture.js";
 import { browserWsFromPort, CdpCaptureCoordinator, RawCdp, readDevtoolsWs } from "./cdp.js";
-import { buildHar, selectEntry, summarizeRequests } from "./har.js";
+import { buildHar, cookiesFromHar, selectEntry, summarizeRequests } from "./har.js";
 import type { Har, HarEntry, RequestFilter, RequestSummary } from "./har.js";
 import { log, logError } from "./log.js";
 import { deriveRecordingName, hostSlug, timestamp } from "./naming.js";
@@ -298,8 +298,11 @@ export class RecordingManager {
     s.status = "stopped";
     s.stoppedAt = new Date();
 
-    const cookies = await s.coordinator.cookieJar();
     const har = buildHar(s.store, { browser: s.browserInfo });
+    // Prefer the live CDP jar; if it comes back empty (e.g. headful Chrome's
+    // deprecated getAllCookies), reconstruct it from the captured traffic.
+    let cookies = await s.coordinator.cookieJar();
+    if (!cookies.length) cookies = cookiesFromHar(har);
 
     const hosts = this.collectHosts(har);
     // Titles for naming: Playwright gives the live document titles reliably
@@ -508,10 +511,18 @@ export class RecordingManager {
     let cookies: HarCookie[];
     if (this.session && this.session.id === id) {
       cookies = await this.session.coordinator.cookieJar();
+      if (!cookies.length) cookies = cookiesFromHar(buildHar(this.session.store, { browser: this.session.browserInfo }));
     } else {
       const idx = await findIndexEntry(id);
       if (!idx) throw new Error(`Registrazione non trovata: ${id}`);
       cookies = await readCookies(idx.dir);
+      if (!cookies.length) {
+        try {
+          cookies = cookiesFromHar(await readHar(idx.dir));
+        } catch {
+          /* no HAR on disk — leave empty */
+        }
+      }
     }
     const filtered = domain ? cookies.filter((c) => (c.domain ?? "").toLowerCase().includes(domain.toLowerCase())) : cookies;
     return {

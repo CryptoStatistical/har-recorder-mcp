@@ -203,21 +203,24 @@ export class CdpCaptureCoordinator {
   }
 
   async cookieJar(): Promise<HarCookie[]> {
-    // Network.getAllCookies (on a page session) returns the whole jar incl http-only.
+    // Browser-level Storage.getCookies is the current, browser-wide jar (incl
+    // http-only). Preferred because Network.getAllCookies is deprecated and on
+    // some channels (notably headful Chrome) returns an EMPTY array with no error.
+    try {
+      const res = await this.cdp.send("Storage.getCookies", {});
+      if (res?.cookies?.length) return (res.cookies as unknown[]).map((c) => cdpCookieToHar(c));
+    } catch (err) {
+      logError("Storage.getCookies", err);
+    }
+    // Fallback: Network.getAllCookies on a page session. Only accept it when it
+    // actually has cookies — an empty array here must NOT short-circuit the jar.
     if (this.firstPageSession) {
       try {
         const res = await this.cdp.send("Network.getAllCookies", {}, this.firstPageSession);
-        if (res?.cookies) return (res.cookies as unknown[]).map((c) => cdpCookieToHar(c));
+        if (res?.cookies?.length) return (res.cookies as unknown[]).map((c) => cdpCookieToHar(c));
       } catch (err) {
         logError("getAllCookies", err);
       }
-    }
-    // Fallback: browser-level Storage.getCookies.
-    try {
-      const res = await this.cdp.send("Storage.getCookies", {});
-      if (res?.cookies) return (res.cookies as unknown[]).map((c) => cdpCookieToHar(c));
-    } catch (err) {
-      logError("Storage.getCookies", err);
     }
     return [];
   }

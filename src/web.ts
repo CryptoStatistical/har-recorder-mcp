@@ -20,7 +20,7 @@ import { createReadStream } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { SERVER_NAME, SERVER_VERSION, recordingRoot, resolveRoot } from "./config.js";
-import { selectEntry, summarizeRequests, type RequestFilter } from "./har.js";
+import { cookiesFromHar, selectEntry, summarizeRequests, type RequestFilter } from "./har.js";
 import { log, logError } from "./log.js";
 import { RecordingManager } from "./manager.js";
 import { findIndexEntry, readCookies, readHar, readIndex, readMetadata, recordingDirPath } from "./storage.js";
@@ -253,7 +253,16 @@ async function handleGet(res: ServerResponse, url: URL): Promise<void> {
         sendJson(res, 200, await manager.getCookies(id, domain));
         return;
       }
-      const all = await readCookies(dir);
+      let all = await readCookies(dir);
+      // cookies.json can be empty (older recordings hit the headful getAllCookies
+      // bug) — reconstruct the jar from the captured HAR traffic instead.
+      if (!all.length) {
+        try {
+          all = cookiesFromHar(await loadHar(dir));
+        } catch {
+          /* no HAR — leave empty */
+        }
+      }
       const cookies = domain ? all.filter((c) => (c.domain ?? "").toLowerCase().includes(domain.toLowerCase())) : all;
       sendJson(res, 200, {
         total: cookies.length,

@@ -335,6 +335,44 @@ export function summarizeRequests(har: Har, filter: RequestFilter = {}): { total
   };
 }
 
+/**
+ * Reconstruct a cookie jar from the captured traffic — a fallback for when the
+ * CDP cookie APIs come back empty (e.g. headful Chrome's deprecated
+ * Network.getAllCookies). Response `Set-Cookie` entries are richest (they carry
+ * httpOnly/secure/path/domain); request `Cookie` headers fill in anything only
+ * ever sent, never set, during the session. Deduped by name + domain.
+ */
+export function cookiesFromHar(har: Har): HarCookie[] {
+  const hostOfUrl = (u: string) => {
+    try {
+      return new URL(u).hostname;
+    } catch {
+      return "";
+    }
+  };
+  const norm = (d?: string) => (d ?? "").replace(/^\./, "").toLowerCase();
+  const jar = new Map<string, HarCookie>();
+
+  // Set-Cookie responses first (full attributes).
+  for (const e of har.log.entries) {
+    const host = hostOfUrl(e.request.url);
+    for (const c of e.response.cookies ?? []) {
+      const domain = c.domain || host;
+      jar.set(`${c.name}|${norm(domain)}`, { ...c, domain });
+    }
+  }
+  // Then request cookies (name/value only) for anything not already captured.
+  for (const e of har.log.entries) {
+    const host = hostOfUrl(e.request.url);
+    for (const c of e.request.cookies ?? []) {
+      const domain = c.domain || host;
+      const key = `${c.name}|${norm(domain)}`;
+      if (!jar.has(key)) jar.set(key, { name: c.name, value: c.value, domain });
+    }
+  }
+  return [...jar.values()];
+}
+
 export function selectEntry(har: Har, selector: { index?: number; requestId?: string; urlContains?: string }): HarEntry | undefined {
   if (selector.index != null) return har.log.entries[selector.index];
   if (selector.requestId) return har.log.entries.find((e) => e._requestId === selector.requestId);
