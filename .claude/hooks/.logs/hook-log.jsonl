@@ -1,6 +1,0 @@
-{"ts":"2026-06-22T19:53:09.480Z","hook":"session-init","projectRoot":"/Users/n0def/Desktop non Cloud/cryptostatistical/Progetti/mcp-web-recorder","gitBranch":""}
-{"ts":"2026-06-22T19:56:59.253Z","hook":"iteration-context","action":"skip","iterationCount":1}
-{"ts":"2026-06-22T19:56:59.253Z","hook":"dev-rules-reminder","action":"inject","iterationCount":0}
-{"ts":"2026-06-22T20:14:35.261Z","hook":"dangerous-cmd-block","action":"block","matched":"rm -rf .","command":"cd \"/Users/n0def/Desktop non Cloud/cryptostatistical/Progetti/mcp-web-recorder\" && rm -rf .recording && rm -f smoke.mjs e2e.mjs && mkdir -p test && echo \"cleaned\""}
-{"ts":"2026-06-22T20:20:19.208Z","hook":"iteration-context","action":"skip","iterationCount":2}
-{"ts":"2026-06-22T21:21:15.987Z","hook":"iteration-context","action":"skip","iterationCount":3}

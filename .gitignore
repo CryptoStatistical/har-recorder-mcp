@@ -4,3 +4,8 @@ dist/
 
 # Recorded sessions contain LIVE cookies and session tokens — never commit them.
 .recording/
+
+# Claude Code local hooks, logs and internal state — not part of the project.
+.claude/
+*.log
+
