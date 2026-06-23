@@ -109,13 +109,16 @@ function renderRecordings() {
   }
   for (const r of items) {
     const live = !!r.live;
+    const niceName = r.title || r.label || r.host || r.name;
     const item = el("div", {
       class: "rec-item" + (state.selected === r.recordingId ? " active" : "") + (live ? " live" : ""),
       dataset: { id: r.recordingId },
       onclick: () => selectRecording(r.recordingId),
     }, [
-      live ? el("span", { class: "ri-live" }, [el("span", { class: "live-pulse" }), "REC"]) : null,
-      el("div", { class: "ri-title", text: r.title || r.label || r.host || r.name }),
+      live
+        ? el("span", { class: "ri-live" }, [el("span", { class: "live-pulse" }), "REC"])
+        : el("button", { class: "ri-del", title: "Elimina dal disco", text: "🗑", onclick: (e) => { e.stopPropagation(); deleteRecording(r.recordingId, niceName); } }),
+      el("div", { class: "ri-title", text: niceName }),
       el("div", { class: "ri-sub", text: (r.host || hostOf(r.url) || "—") + " · " + fmtDate(r.startedAt) }),
       el("div", { class: "ri-stats" }, [
         el("span", { text: (r.requestCount ?? 0) + " req" }),
@@ -169,6 +172,7 @@ function renderHeader() {
   add(badgeKV("profilo", m.profile));
   if (m.zipBytes) add(badgeKV("zip", fmtBytes(m.zipBytes)));
   if (m.zipParts && m.zipParts.length) add(el("span", { class: "badge warn", text: "split ×" + m.zipParts.length }));
+  $("#d-delete").hidden = !!m.live; // can't delete a recording while it's still recording
 }
 function badgeKV(k, v) { return el("span", { class: "badge" }, [k + " ", el("b", { text: String(v ?? "—") })]); }
 
@@ -494,6 +498,30 @@ $("#new-form").addEventListener("submit", async (e) => {
   } finally {
     submit.disabled = false;
   }
+});
+
+// ===========================================================================
+// control: delete a recording from disk
+// ===========================================================================
+async function deleteRecording(id, name) {
+  if (!confirm("Eliminare definitivamente dal disco?\n\n" + (name || id) + "\n\nVengono rimossi HAR, cookie, summary e zip. Non è reversibile.")) return;
+  try {
+    await postJSON("/api/recordings/" + encodeURIComponent(id) + "/delete", {});
+    toast("Registrazione eliminata.", "ok");
+    if (state.selected === id) {
+      state.selected = null;
+      state.meta = null;
+      $("#detail").hidden = true;
+      $("#empty").hidden = false;
+    }
+    await loadRecordings();
+  } catch (e) {
+    toast(e.message, "err");
+  }
+}
+$("#d-delete").addEventListener("click", () => {
+  if (!state.selected || (state.meta && state.meta.live)) return;
+  deleteRecording(state.selected, state.meta ? (state.meta.title || state.meta.label || state.meta.host || metaId(state.meta)) : state.selected);
 });
 
 // ===========================================================================

@@ -135,7 +135,8 @@ function serveStatic(res: ServerResponse, pathname: string): void {
   }
   const filePath = path.join(PUBLIC_DIR, entry.file);
   const stream = createReadStream(filePath);
-  stream.on("open", () => res.writeHead(200, { "content-type": entry.type }));
+  // no-store so iterating on the UI never serves a stale app.js/styles.css.
+  stream.on("open", () => res.writeHead(200, { "content-type": entry.type, "cache-control": "no-store" }));
   stream.on("error", () => {
     res.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
     res.end("UI assets missing — did you run `npm run build`?");
@@ -184,7 +185,9 @@ async function handleGet(res: ServerResponse, url: URL): Promise<void> {
   if (parts.length >= 3 && parts[1] === "recordings") {
     const id = decodeURIComponent(parts[2]);
     const sub = parts[3];
-    const live = manager.isLive(id);
+    // "live" means still recording — once stopped, everything is on disk, so we
+    // serve from disk even while the (stopped) browser is still open.
+    const live = manager.activeRecordingId() === id;
     const found = live ? { id, dir: "" } : await resolveStoppedDir(id);
     if (!found) {
       notFound(res, `Recording not found (or not yet stopped): ${id}`);
@@ -328,6 +331,13 @@ async function handlePost(req: IncomingMessage, res: ServerResponse, url: URL): 
     }
     if (action === "close") {
       sendJson(res, 200, await manager.closeBrowser(id));
+      return;
+    }
+    if (action === "delete") {
+      const idx = await findIndexEntry(id);
+      const result = await manager.deleteRecording(id);
+      if (idx) harCache.delete(idx.dir); // drop any cached HAR for the removed recording
+      sendJson(res, 200, result);
       return;
     }
   }

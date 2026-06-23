@@ -13,6 +13,7 @@ import { log, logError } from "./log.js";
 import { deriveRecordingName, hostSlug, timestamp } from "./naming.js";
 import {
   buildSummaryMarkdown,
+  deleteRecording,
   ensureRecordingRoot,
   findIndexEntry,
   readCookies,
@@ -541,6 +542,23 @@ export class RecordingManager {
     }
     await upsertIndex({ ...idx, notes: meta.notes });
     return { recordingId: id, note, applied: "disk", notes: meta.notes };
+  }
+
+  /**
+   * Permanently delete a recording from disk (and the index). Refuses while it
+   * is still recording; if it is the in-memory (stopped) session, the browser is
+   * closed first so nothing dangles.
+   */
+  async deleteRecording(id: string): Promise<{ deleted: boolean; recordingId: string }> {
+    if (this.activeRecordingId() === id) {
+      throw new Error("La registrazione è ancora attiva: fermala (stop) e chiudi il browser prima di cancellarla.");
+    }
+    const idx = await findIndexEntry(id);
+    if (!idx) throw new Error(`Registrazione non trovata: ${id}`);
+    if (this.session && this.session.id === idx.id) await this.closeBrowser(idx.id);
+    await deleteRecording(idx.dir);
+    log(`deleted [${idx.id}] → ${idx.dir}`);
+    return { deleted: true, recordingId: idx.id };
   }
 
   async dispose(): Promise<void> {

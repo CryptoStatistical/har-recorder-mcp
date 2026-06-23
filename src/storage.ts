@@ -103,6 +103,24 @@ export async function findIndexEntry(id: string): Promise<IndexEntry | undefined
   return entries.find((e) => e.id === id || e.dir === id);
 }
 
+/**
+ * Delete a recording's directory (HAR, cookies, summary, zip parts, everything)
+ * and drop it from the index. `dir` is the directory name under `.recording/`.
+ * Guarded so it can only remove a path INSIDE the recording root.
+ */
+export async function deleteRecording(dir: string): Promise<void> {
+  const root = recordingRoot();
+  const target = recordingDirPath(dir);
+  const rel = path.relative(root, target);
+  if (rel === "" || rel.startsWith("..") || path.isAbsolute(rel)) {
+    throw new Error(`Rifiuto di cancellare un percorso fuori da .recording/: ${dir}`);
+  }
+  await fs.rm(target, { recursive: true, force: true });
+  const entries = await readIndex();
+  const next = entries.filter((e) => e.dir !== dir);
+  if (next.length !== entries.length) await writeIndex(next);
+}
+
 async function createZip(zipPath: string, files: Array<{ name: string; path: string }>): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const output = createWriteStream(zipPath);
