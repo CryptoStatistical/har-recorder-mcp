@@ -173,6 +173,7 @@ function renderHeader() {
   if (m.zipBytes) add(badgeKV("zip", fmtBytes(m.zipBytes)));
   if (m.zipParts && m.zipParts.length) add(el("span", { class: "badge warn", text: "split x" + m.zipParts.length }));
   $("#d-delete").hidden = !!m.live; // can't delete a recording while it's still recording
+  $("#d-claude").hidden = !!m.live; // files/handoff are only available once stopped
 }
 function badgeKV(k, v) { return el("span", { class: "badge" }, [k + " ", el("b", { text: String(v ?? "—") })]); }
 
@@ -210,6 +211,36 @@ function renderOverview() {
   }
   if (m.notes && m.notes.length) {
     panel.appendChild(section("Notes", el("ul", { class: "ov-list" }, m.notes.map((n) => el("li", { text: n })))));
+  }
+  if (!m.live) {
+    const box = el("div", { class: "downloads", text: "Loading…" });
+    panel.appendChild(section("Download", box));
+    loadFiles(metaId(m), box);
+  }
+}
+
+const KIND_LABEL = { zip: "Bundle (.zip)", part: "Split part", har: "HAR", "har.gz": "HAR (gzip)", cookies: "Cookies", summary: "Summary", metadata: "Metadata", other: "File" };
+
+async function loadFiles(id, box) {
+  try {
+    const data = await getJSON("/api/recordings/" + encodeURIComponent(id) + "/files");
+    box.textContent = "";
+    if (!data.files.length) { box.appendChild(el("div", { class: "muted", text: "No files." })); return; }
+    for (const f of data.files) {
+      const href = "/api/recordings/" + encodeURIComponent(id) + "/file/" + encodeURIComponent(f.name);
+      box.appendChild(el("div", { class: "dl-row" }, [
+        el("span", { class: "dl-kind", text: KIND_LABEL[f.kind] || f.kind }),
+        el("span", { class: "dl-name", title: f.name, text: f.name }),
+        el("span", { class: "dl-size", text: fmtBytes(f.bytes) }),
+        el("a", { class: "btn ghost sm", href, download: f.name, text: "Download" }),
+      ]));
+    }
+    if (data.files.some((f) => f.kind === "part")) {
+      box.appendChild(el("p", { class: "hint", text: "Split parts (≤20 MB each) are meant for uploading to Claude; rejoin them before opening the HAR. Use \"Send to Claude\" for the ready prompt." }));
+    }
+  } catch (err) {
+    box.textContent = "";
+    box.appendChild(el("div", { class: "err", text: "Error: " + err.message }));
   }
 }
 function card(k, v, small) { return el("div", { class: "card" }, [el("div", { class: "k", text: k }), el("div", { class: "v" + (small ? " sm" : ""), text: String(v) })]); }
@@ -486,6 +517,54 @@ $("#d-delete").addEventListener("click", () => {
 });
 
 // ===========================================================================
+// control: send to Claude (continuation prompt + split parts to attach)
+// ===========================================================================
+function closeClaude() { $("#claude-modal").hidden = true; }
+for (const c of document.querySelectorAll("[data-claude-close]")) c.addEventListener("click", closeClaude);
+
+async function sendToClaude() {
+  if (!state.selected || (state.meta && state.meta.live)) return;
+  const id = state.selected;
+  try {
+    const data = await getJSON("/api/recordings/" + encodeURIComponent(id) + "/claude-prompt");
+    $("#claude-prompt").value = data.prompt;
+    const parts = $("#claude-parts");
+    parts.textContent = "";
+    if (data.split && data.parts.length) {
+      parts.appendChild(el("h4", { class: "parts-h", text: "Attach these parts to Claude (≤20 MB each)" }));
+      for (const name of data.parts) {
+        const href = "/api/recordings/" + encodeURIComponent(id) + "/file/" + encodeURIComponent(name);
+        parts.appendChild(el("div", { class: "dl-row" }, [
+          el("span", { class: "dl-name", title: name, text: name }),
+          el("a", { class: "btn ghost sm", href, download: name, text: "Download" }),
+        ]));
+      }
+      if (data.reconstruct) parts.appendChild(el("p", { class: "hint", text: "Rejoin before opening: " + data.reconstruct }));
+    } else {
+      parts.appendChild(el("p", { class: "hint", text: "Small recording — Claude can read it directly at the path in the prompt, or use the har-recorder MCP tools." }));
+    }
+    $("#claude-modal").hidden = false;
+  } catch (err) {
+    toast(err.message, "err");
+  }
+}
+$("#d-claude").addEventListener("click", sendToClaude);
+
+$("#claude-copy").addEventListener("click", async () => {
+  const text = $("#claude-prompt").value;
+  try {
+    await navigator.clipboard.writeText(text);
+    toast("Prompt copied to clipboard.", "ok");
+  } catch (_) {
+    // fallback: select the textarea so the user can copy manually
+    const ta = $("#claude-prompt");
+    ta.focus();
+    ta.select();
+    toast("Press Cmd/Ctrl+C to copy.", "ok");
+  }
+});
+
+// ===========================================================================
 // control: live bar + status polling
 // ===========================================================================
 let lastActiveId = null;
@@ -589,6 +668,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   $("#drawer").hidden = true;
   closeModal();
+  closeClaude();
 });
 $("#rec-filter").addEventListener("input", renderRecordings);
 

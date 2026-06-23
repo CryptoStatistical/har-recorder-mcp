@@ -186,19 +186,28 @@ npm run ui          # serves http://127.0.0.1:4477 and opens it in your browser
   profile, capture-bodies, plus advanced `channel` / `attachToPort`). Chrome opens
   and capture begins.
 - **Live bar** — while a recording is active: live duration & request count, plus
-  🚩 Checkpoint, ⏹ Stop & save (assembles the HAR), ✕ Close browser.
+  Checkpoint, Stop & save (assembles the HAR), Close browser.
 
 **Inspect** (live *or* on-disk)
 
 - **Sidebar**: every recording (newest first, filterable); the active one is
-  flagged `● REC`.
-- **Overview**: metadata, hosts, checkpoints, notes, browser, bundle size.
-- **Richieste**: filterable request table (method / status / type / url); click a
+  flagged `REC`.
+- **Overview**: metadata, hosts, checkpoints, notes, browser, bundle size, and a
+  **Download** list of every artifact (`.har`, `.zip`, cookies, summary, …).
+- **Requests**: filterable request table (method / status / type / url); click a
   row for the full HAR entry — headers, query, post-data, cookies, response body
   and WebSocket frames.
-- **Cookie**: full jar (http-only included); values masked until you tick
-  *mostra valori*.
+- **Cookies**: full jar (http-only included); values masked until you tick
+  *show values*.
 - **Summary**: the recording's `summary.md`.
+
+**Hand off**
+
+- **Download** — grab the whole file (single `.zip` or `session.har`) to your
+  machine from the Overview tab.
+- **Send to Claude** — copies a continuation prompt to paste into the Claude
+  conversation that opened the MCP. For large recordings it also lists the split
+  parts (≤20 MB each) to attach, with the rejoin command.
 
 > The dashboard is a **separate process** from the MCP server, so it owns its own
 > recording engine: it fully controls the sessions **it** launches; sessions

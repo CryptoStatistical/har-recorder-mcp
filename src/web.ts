@@ -15,7 +15,7 @@
  */
 import { spawn } from "node:child_process";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { stat as fsStat } from "node:fs/promises";
+import { readdir, stat as fsStat } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -286,9 +286,133 @@ async function handleGet(res: ServerResponse, url: URL): Promise<void> {
       stream.pipe(res);
       return;
     }
+
+    // GET /api/recordings/:id/files — list downloadable artifacts (with sizes)
+    if (sub === "files") {
+      if (live) {
+        notFound(res, "Files are written on stop_recording.");
+        return;
+      }
+      sendJson(res, 200, { files: await listFiles(dir), partLimitMB: 20 });
+      return;
+    }
+
+    // GET /api/recordings/:id/file/<name> — download a single artifact
+    if (sub === "file") {
+      if (live) {
+        notFound(res, "Files are written on stop_recording.");
+        return;
+      }
+      const name = path.basename(decodeURIComponent(parts[4] ?? ""));
+      if (!name) {
+        notFound(res, "Missing file name.");
+        return;
+      }
+      const dirPath = recordingDirPath(dir);
+      const filePath = path.join(dirPath, name);
+      // path-guard: the resolved file must stay inside the recording directory.
+      if (path.relative(dirPath, filePath).startsWith("..")) {
+        notFound(res, "Invalid file path.");
+        return;
+      }
+      const stream = createReadStream(filePath);
+      stream.on("open", () =>
+        res.writeHead(200, {
+          "content-type": "application/octet-stream",
+          "content-disposition": `attachment; filename="${name.replace(/"/g, "")}"`,
+        }),
+      );
+      stream.on("error", () => notFound(res, `File not found: ${name}`));
+      stream.pipe(res);
+      return;
+    }
+
+    // GET /api/recordings/:id/claude-prompt — continuation prompt + transfer info
+    if (sub === "claude-prompt") {
+      if (live) {
+        notFound(res, "Stop the recording first to hand it to Claude.");
+        return;
+      }
+      const meta = await readMetadata(dir);
+      sendJson(res, 200, buildClaudePrompt(id, dir, meta));
+      return;
+    }
   }
 
   notFound(res);
+}
+
+// ---------------------------------------------------------------------------
+// download helpers
+// ---------------------------------------------------------------------------
+
+/** Classify an artifact by name so the UI can label/sort the download list. */
+function fileKind(name: string): string {
+  if (/\.zip\.\d+$/.test(name)) return "part";
+  if (name.endsWith(".har")) return "har";
+  if (name.endsWith(".har.gz")) return "har.gz";
+  if (name.endsWith(".zip")) return "zip";
+  if (name === "cookies.json") return "cookies";
+  if (name === "metadata.json") return "metadata";
+  if (name === "summary.md") return "summary";
+  return "other";
+}
+
+async function listFiles(dir: string): Promise<Array<{ name: string; bytes: number; kind: string }>> {
+  const dirPath = recordingDirPath(dir);
+  const names = await readdir(dirPath);
+  const files: Array<{ name: string; bytes: number; kind: string }> = [];
+  for (const name of names) {
+    try {
+      const st = await fsStat(path.join(dirPath, name));
+      if (st.isFile()) files.push({ name, bytes: st.size, kind: fileKind(name) });
+    } catch {
+      /* skip unreadable */
+    }
+  }
+  const order = ["zip", "part", "har", "har.gz", "cookies", "summary", "metadata", "other"];
+  files.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind) || a.name.localeCompare(b.name));
+  return files;
+}
+
+/**
+ * Build the continuation prompt the user pastes into the Claude conversation that
+ * launched the MCP, plus the split-part info to attach (Claude's upload caps at
+ * ~20 MB, so large bundles travel as the ≤20 MB parts; the whole file is for the
+ * local download instead).
+ */
+function buildClaudePrompt(
+  id: string,
+  dir: string,
+  meta: Awaited<ReturnType<typeof readMetadata>>,
+): { prompt: string; split: boolean; parts: string[]; zipName?: string; reconstruct?: string; dir: string } {
+  const absDir = recordingDirPath(dir);
+  const name = meta?.title || meta?.label || meta?.host || dir;
+  const zipName = meta?.files?.zip;
+  const parts = meta?.zipParts ?? [];
+  const split = parts.length > 0;
+  const reconstruct = split && zipName ? `cat ${zipName}.* > ${zipName} && unzip ${zipName}` : undefined;
+
+  const lines = [
+    `Continue: analyze the recorded browsing session "${name}" captured by the har-recorder MCP (recordingId: ${id}).`,
+    "",
+    "Use the har-recorder tools to reconstruct what happened:",
+    '- list_requests with resourceType="document" for the navigation path, and method="POST" for actions/login;',
+    "- get_request for the details of the relevant requests;",
+    "- get_cookies for the session jar (http-only included).",
+    "Summarize: where I went, the hosts contacted, the authentication requests, and whether an authenticated session was established.",
+    "",
+    `The recording is saved locally at: ${absDir}`,
+  ];
+  if (split) {
+    lines.push(
+      "",
+      `The full bundle is split into ${parts.length} parts for upload (each ≤20 MB): ${parts.join(", ")}.`,
+      "Attach ALL the parts to me, then rejoin them BEFORE opening session.har:",
+      `  ${reconstruct}`,
+    );
+  }
+  return { prompt: lines.join("\n"), split, parts, zipName, reconstruct, dir: absDir };
 }
 
 // ---------------------------------------------------------------------------

@@ -129,6 +129,7 @@ body { display: grid; grid-template-columns: 300px 1fr; height: 100vh; overflow:
 .detail-head h1 { margin: 0; font-size: 18px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .d-meta { color: var(--text-dim); font-size: 12px; margin-top: 5px; font-family: var(--mono); }
 .dh-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.dh-actions { display: flex; gap: 8px; }
 .d-badges { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 
 .badge { font-size: 11px; padding: 3px 9px; border-radius: 20px; background: var(--bg-2); border: 1px solid var(--border-2); color: var(--text-dim); white-space: nowrap; }
@@ -244,6 +245,21 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .advanced summary:hover { color: var(--text); }
 .advanced .field-row { margin-top: 12px; }
 .modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px 20px; }
+
+/* downloads */
+.downloads { display: flex; flex-direction: column; gap: 7px; }
+.dl-row { display: flex; align-items: center; gap: 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 9px; padding: 8px 12px; }
+.dl-kind { color: var(--text-dim); font-size: 11px; min-width: 96px; }
+.dl-name { font-family: var(--mono); font-size: 12px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-size { color: var(--text-mut); font-size: 11.5px; font-variant-numeric: tabular-nums; min-width: 70px; text-align: right; }
+.dl-row a.btn { text-decoration: none; }
+
+/* send-to-claude modal extras */
+.prompt-box { width: 100%; background: var(--bg-2); border: 1px solid var(--border); color: var(--text); border-radius: 9px; padding: 11px 13px; font-family: var(--mono); font-size: 12px; line-height: 1.5; resize: vertical; outline: none; }
+.prompt-box:focus { border-color: var(--accent); }
+.claude-actions { display: flex; justify-content: flex-end; margin-top: 10px; }
+#claude-parts { margin-top: 16px; display: flex; flex-direction: column; gap: 7px; }
+.parts-h { margin: 0 0 2px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-dim); }
 
 /* toast */
 .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--bg-3); border: 1px solid var(--border-2); color: var(--text); padding: 11px 18px; border-radius: 10px; box-shadow: var(--shadow); z-index: 80; font-size: 13px; max-width: 80vw; }

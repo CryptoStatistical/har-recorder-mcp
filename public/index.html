@@ -60,7 +60,10 @@
           </div>
           <div class="dh-right">
             <div id="d-badges" class="d-badges"></div>
-            <button id="d-delete" class="btn danger-ghost sm" hidden>Delete from disk</button>
+            <div class="dh-actions">
+              <button id="d-claude" class="btn primary sm" hidden>Send to Claude</button>
+              <button id="d-delete" class="btn danger-ghost sm" hidden>Delete from disk</button>
+            </div>
           </div>
         </header>
 
@@ -181,6 +184,28 @@
           <button type="submit" id="m-submit" class="btn primary">Start</button>
         </footer>
       </form>
+    </div>
+
+    <!-- send to Claude modal -->
+    <div id="claude-modal" class="modal" hidden>
+      <div class="modal-backdrop" data-claude-close></div>
+      <div class="modal-card">
+        <header class="modal-head">
+          <h2>Send to Claude</h2>
+          <button type="button" class="icon-btn" data-claude-close aria-label="Close">Close</button>
+        </header>
+        <div class="modal-body">
+          <p class="hint">Paste this into the Claude conversation that opened the MCP, to continue the analysis.</p>
+          <textarea id="claude-prompt" class="prompt-box" readonly rows="9"></textarea>
+          <div class="claude-actions">
+            <button type="button" id="claude-copy" class="btn primary sm">Copy prompt</button>
+          </div>
+          <div id="claude-parts"></div>
+        </div>
+        <footer class="modal-foot">
+          <button type="button" class="btn ghost" data-claude-close>Close</button>
+        </footer>
+      </div>
     </div>
 
     <div id="toast" class="toast" hidden></div>
