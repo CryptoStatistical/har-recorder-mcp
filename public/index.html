@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HAR Recorder</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <aside id="sidebar">
+      <header class="brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div>
+          <div class="brand-title">HAR Recorder</div>
+          <div class="brand-sub">capture &amp; inspect</div>
+        </div>
+      </header>
+
+      <div class="side-actions">
+        <button id="new-rec" class="btn primary block">
+          <span class="dot-rec"></span> Nuova registrazione
+        </button>
+      </div>
+
+      <div class="sidebar-search">
+        <input id="rec-filter" type="search" placeholder="Filtra registrazioni…" autocomplete="off" />
+      </div>
+      <div id="rec-list" class="rec-list" aria-busy="true"></div>
+      <footer id="root-label" class="root-label"></footer>
+    </aside>
+
+    <main id="main">
+      <!-- live recording bar -->
+      <div id="live-bar" class="live-bar" hidden>
+        <span class="live-pulse"></span>
+        <div class="live-info">
+          <div class="live-host" id="live-host">—</div>
+          <div class="live-sub" id="live-sub">—</div>
+        </div>
+        <div class="live-stats">
+          <span><b id="live-reqs">0</b> richieste</span>
+          <span><b id="live-dur">0s</b></span>
+        </div>
+        <div class="live-actions">
+          <button id="lb-checkpoint" class="btn ghost sm">🚩 Checkpoint</button>
+          <button id="lb-stop" class="btn warn sm">⏹ Stop &amp; salva</button>
+          <button id="lb-close" class="btn danger-ghost sm">✕ Chiudi browser</button>
+        </div>
+      </div>
+
+      <div id="empty" class="empty">
+        <div class="empty-glyph">◉</div>
+        <p>Avvia una <b>Nuova registrazione</b> o selezionane una a sinistra.</p>
+        <button class="btn primary" onclick="document.getElementById('new-rec').click()">＋ Nuova registrazione</button>
+      </div>
+
+      <section id="detail" class="detail" hidden>
+        <header class="detail-head">
+          <div class="dh-left">
+            <h1 id="d-title"></h1>
+            <div id="d-meta" class="d-meta"></div>
+          </div>
+          <div id="d-badges" class="d-badges"></div>
+        </header>
+
+        <nav class="tabs" role="tablist">
+          <button class="tab active" data-tab="overview">Overview</button>
+          <button class="tab" data-tab="requests">Richieste</button>
+          <button class="tab" data-tab="cookies">Cookie</button>
+          <button class="tab" data-tab="summary">Summary</button>
+        </nav>
+
+        <div class="tab-panels">
+          <div class="panel active" data-panel="overview"></div>
+
+          <div class="panel" data-panel="requests">
+            <div class="filters">
+              <select id="f-method"><option value="">metodo</option></select>
+              <input id="f-status" type="number" min="0" placeholder="status" />
+              <select id="f-type"><option value="">tipo</option></select>
+              <input id="f-url" type="search" placeholder="url contiene…" />
+              <button id="f-apply" class="btn primary sm">Filtra</button>
+              <button id="f-reset" class="btn ghost sm">Reset</button>
+              <button id="f-refresh" class="btn ghost sm" title="Aggiorna" hidden>↻</button>
+              <span id="req-count" class="muted"></span>
+            </div>
+            <div class="table-wrap">
+              <table class="req-table">
+                <thead>
+                  <tr><th>#</th><th>Metodo</th><th>Status</th><th>Tipo</th><th>Mime</th><th class="num">Byte</th><th>URL</th></tr>
+                </thead>
+                <tbody id="req-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel" data-panel="cookies">
+            <div class="filters">
+              <input id="c-domain" type="search" placeholder="dominio contiene…" />
+              <button id="c-apply" class="btn primary sm">Filtra</button>
+              <label class="reveal"><input id="c-reveal" type="checkbox" /> mostra valori</label>
+              <span id="cookie-count" class="muted"></span>
+            </div>
+            <div class="table-wrap">
+              <table class="cookie-table">
+                <thead>
+                  <tr><th>Nome</th><th>Dominio</th><th>Path</th><th>HttpOnly</th><th>Secure</th><th>SameSite</th><th>Scadenza</th><th>Valore</th></tr>
+                </thead>
+                <tbody id="cookie-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel" data-panel="summary">
+            <pre id="summary-pre" class="summary"></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- request detail drawer -->
+    <div id="drawer" class="drawer" hidden>
+      <div class="drawer-backdrop" data-close></div>
+      <div class="drawer-body">
+        <header class="drawer-head">
+          <h2 id="drawer-title">Richiesta</h2>
+          <button class="icon-btn" data-close aria-label="Chiudi">✕</button>
+        </header>
+        <div id="drawer-content"></div>
+      </div>
+    </div>
+
+    <!-- new recording modal -->
+    <div id="modal" class="modal" hidden>
+      <div class="modal-backdrop" data-modal-close></div>
+      <form id="new-form" class="modal-card">
+        <header class="modal-head">
+          <h2>Nuova registrazione</h2>
+          <button type="button" class="icon-btn" data-modal-close aria-label="Chiudi">✕</button>
+        </header>
+        <div class="modal-body">
+          <label class="field">
+            <span>URL iniziale <em>(opzionale)</em></span>
+            <input id="m-url" type="text" placeholder="https://esempio.it" autocomplete="off" />
+          </label>
+          <label class="field">
+            <span>Etichetta <em>(opzionale)</em></span>
+            <input id="m-label" type="text" placeholder="es. login fineco" autocomplete="off" />
+          </label>
+          <div class="field-row">
+            <label class="field">
+              <span>Profilo</span>
+              <select id="m-profile">
+                <option value="persistent">persistent — tiene i login</option>
+                <option value="fresh">fresh — pulito e isolato</option>
+              </select>
+            </label>
+            <label class="check">
+              <input id="m-bodies" type="checkbox" checked /> Cattura body risposte
+            </label>
+          </div>
+          <details class="advanced">
+            <summary>Opzioni avanzate</summary>
+            <div class="field-row">
+              <label class="field">
+                <span>Channel</span>
+                <input id="m-channel" type="text" placeholder="chrome | msedge" autocomplete="off" />
+              </label>
+              <label class="field">
+                <span>Attach to port</span>
+                <input id="m-port" type="number" min="1" placeholder="es. 9222" />
+              </label>
+            </div>
+            <p class="hint">Attach: registra un Chrome già aperto con <code>--remote-debugging-port=PORT</code> invece di lanciarne uno.</p>
+          </details>
+          <p id="m-error" class="err" hidden></p>
+        </div>
+        <footer class="modal-foot">
+          <button type="button" class="btn ghost" data-modal-close>Annulla</button>
+          <button type="submit" id="m-submit" class="btn primary"><span class="dot-rec"></span> Avvia</button>
+        </footer>
+      </form>
+    </div>
+
+    <div id="toast" class="toast" hidden></div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

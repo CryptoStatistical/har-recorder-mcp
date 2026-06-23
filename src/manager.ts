@@ -231,6 +231,16 @@ export class RecordingManager {
   // status / checkpoint
   // -------------------------------------------------------------------------
 
+  /** Id of the live, still-recording session (if any) — used by control surfaces. */
+  activeRecordingId(): string | undefined {
+    return this.session?.status === "recording" ? this.session.id : undefined;
+  }
+
+  /** True when this manager holds the given recording as its live in-memory session. */
+  isLive(id: string): boolean {
+    return !!this.session && this.session.id === id;
+  }
+
   async status(id?: string): Promise<unknown> {
     const s = this.session;
     if (s && (!id || id === s.id)) {
@@ -350,6 +360,8 @@ export class RecordingManager {
       summary: path.basename(artifacts.summaryPath),
       zip: path.basename(artifacts.zipPath),
     };
+    metadata.zipBytes = artifacts.zipBytes;
+    if (artifacts.zipParts.length) metadata.zipParts = artifacts.zipParts;
     await writeMetadata(dirName, metadata);
 
     await upsertIndex({
@@ -359,6 +371,28 @@ export class RecordingManager {
     });
 
     log(`stopped [${s.id}] → ${dirName} (${har.log.entries.length} req, ${cookies.length} cookies)`);
+
+    const split = artifacts.zipParts.length > 0;
+    const zipMB = (artifacts.zipBytes / (1024 * 1024)).toFixed(1);
+    const transfer = split
+      ? {
+          split: true as const,
+          zipBytes: artifacts.zipBytes,
+          partLimitMB: 20,
+          parts: artifacts.zipParts,
+          reconstruct: `cat ${dirName}.zip.* > ${dirName}.zip && unzip ${dirName}.zip`,
+          note:
+            `Lo ZIP (${zipMB} MB) supera 20 MB: è stato diviso in ${artifacts.zipParts.length} parti ` +
+            `da ≤20 MB (${dirName}.zip.001…${String(artifacts.zipParts.length).padStart(3, "0")}). ` +
+            `Per passarlo invia TUTTE le parti, poi ricostruiscile con il comando 'reconstruct' ` +
+            `PRIMA di aprire session.har (l'HAR completo può essere molto grande).`,
+        }
+      : {
+          split: false as const,
+          zipBytes: artifacts.zipBytes,
+          partLimitMB: 20,
+          note: `Lo ZIP (${zipMB} MB) è sotto i 20 MB: passalo intero (${dirName}.zip), nessuno split necessario.`,
+        };
 
     return {
       recordingId: s.id,
@@ -372,8 +406,12 @@ export class RecordingManager {
       hosts: hosts.slice(0, 10),
       directory: artifacts.dir,
       files: metadata.files,
+      transfer,
       message:
-        "HAR assemblato (tutti i target: pagine, iframe, worker, service worker). Il browser resta aperto: ispeziona con list_requests/get_request/get_cookies o chiudi con close_browser.",
+        "HAR assemblato (tutti i target: pagine, iframe, worker, service worker). Il browser resta aperto: ispeziona con list_requests/get_request/get_cookies o chiudi con close_browser." +
+        (split
+          ? ` ⚠️ Pacchetto >20 MB: vedi 'transfer' — passa le ${artifacts.zipParts.length} parti ${dirName}.zip.NNN e ricostruiscile prima di aprire l'HAR.`
+          : ""),
     };
   }
 

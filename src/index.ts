@@ -85,7 +85,7 @@ server.registerTool(
   {
     title: "Stop recording",
     description:
-      "Stop capture and assemble the complete HAR (http-only cookies included). Use when the user is done recording or wants to save the captured traffic. Names the folder and writes .har/.har.gz/.zip/summary.md/cookies.json/metadata.json, then updates the index. The browser stays open.",
+      "Stop capture and assemble the complete HAR (http-only cookies included). Use when the user is done recording or wants to save the captured traffic. Names the folder and writes .har/.har.gz/.zip/summary.md/cookies.json/metadata.json, then updates the index. If the .zip bundle exceeds 20 MB it is also split into ≤20 MB parts named `<name>.zip.001`, `<name>.zip.002`, …; the result includes a `transfer` block with the part list and the command to rejoin them (`cat <name>.zip.* > <name>.zip`) — reconstruct the full bundle BEFORE opening the (potentially very large) HAR. The browser stays open.",
     inputSchema: {
       recordingId: z.string().optional().describe("If omitted, stops the active recording."),
     },

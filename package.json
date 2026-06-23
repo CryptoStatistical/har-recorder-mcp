@@ -6,10 +6,12 @@
   "license": "MIT",
   "main": "dist/index.js",
   "bin": {
-    "har-recorder-mcp": "dist/index.js"
+    "har-recorder-mcp": "dist/index.js",
+    "har-recorder-ui": "dist/web.js"
   },
   "files": [
     "dist",
+    "public",
     "README.md",
     "BLUEPRINT.md"
   ],
@@ -20,7 +22,8 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -w -p tsconfig.json",
     "start": "node dist/index.js",
-    "test": "node test/smoke.mjs",
+    "ui": "node dist/web.js",
+    "test": "node test/smoke.mjs && node test/split.mjs",
     "test:e2e": "node test/e2e.mjs",
     "install:browser": "playwright install chromium"
   },

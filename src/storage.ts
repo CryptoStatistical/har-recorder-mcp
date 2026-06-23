@@ -1,6 +1,7 @@
-import { createWriteStream } from "node:fs";
+import { createReadStream, createWriteStream } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { pipeline } from "node:stream/promises";
 import { gzip } from "node:zlib";
 import { promisify } from "node:util";
 import archiver from "archiver";
@@ -9,6 +10,14 @@ import type { Har, HarEntry } from "./har.js";
 import type { HarCookie } from "./capture.js";
 
 const gzipAsync = promisify(gzip);
+
+/**
+ * Max bytes per transfer chunk. Many upload channels (chat attachments, etc.)
+ * cap a single file at 20 MB, and a full HAR can be far larger, so the bundle is
+ * split into parts that each stay under that cap. 19 MiB (~19.9 MB) leaves margin
+ * whether the channel reads "20 MB" as decimal (20,000,000) or binary (20 MiB).
+ */
+export const SPLIT_PART_BYTES = 19 * 1024 * 1024;
 
 export type RecordingStatus = "recording" | "stopped" | "error";
 
@@ -52,6 +61,10 @@ export interface RecordingMetadata {
   notes: string[];
   browser?: { name: string; version: string };
   files: Record<string, string>;
+  /** Byte size of the .zip bundle. */
+  zipBytes?: number;
+  /** Split-part basenames when the bundle exceeded the 20 MB transfer cap. */
+  zipParts?: string[];
 }
 
 export async function ensureRecordingRoot(): Promise<void> {
@@ -103,6 +116,27 @@ async function createZip(zipPath: string, files: Array<{ name: string; path: str
   });
 }
 
+/**
+ * Split `filePath` into `<filePath>.001`, `<filePath>.002`, … each ≤ partBytes,
+ * streaming so a huge bundle is never held in memory. Returns the part basenames
+ * (empty when the file already fits in a single part). Reconstruct with:
+ *   cat <file>.* > <file>   (Windows: copy /b <file>.001+<file>.002 <file>)
+ */
+export async function splitIntoParts(filePath: string, partBytes: number): Promise<string[]> {
+  const { size } = await fs.stat(filePath);
+  if (size <= partBytes) return [];
+  const total = Math.ceil(size / partBytes);
+  const parts: string[] = [];
+  for (let i = 0; i < total; i++) {
+    const start = i * partBytes;
+    const end = Math.min(start + partBytes, size) - 1; // inclusive byte range
+    const partPath = `${filePath}.${String(i + 1).padStart(3, "0")}`;
+    await pipeline(createReadStream(filePath, { start, end }), createWriteStream(partPath));
+    parts.push(path.basename(partPath));
+  }
+  return parts;
+}
+
 export interface WriteArtifactsInput {
   dirName: string;
   har: Har;
@@ -119,6 +153,11 @@ export interface WrittenArtifacts {
   metadataPath: string;
   summaryPath: string;
   zipPath: string;
+  /** Byte size of the assembled .zip bundle. */
+  zipBytes: number;
+  /** Split-part basenames (`<dir>.zip.001`, …) when the .zip exceeds the 20 MB
+   *  transfer cap; empty when the single .zip fits and no split was needed. */
+  zipParts: string[];
 }
 
 export async function writeArtifacts(input: WriteArtifactsInput): Promise<WrittenArtifacts> {
@@ -146,7 +185,12 @@ export async function writeArtifacts(input: WriteArtifactsInput): Promise<Writte
     { name: "summary.md", path: summaryPath },
   ]);
 
-  return { dir, harPath, harGzPath, cookiesPath, metadataPath, summaryPath, zipPath };
+  // The single .zip is kept for local use; oversized bundles are ALSO emitted as
+  // ≤20 MB parts so they can be transferred through size-capped channels.
+  const zipBytes = (await fs.stat(zipPath)).size;
+  const zipParts = await splitIntoParts(zipPath, SPLIT_PART_BYTES);
+
+  return { dir, harPath, harGzPath, cookiesPath, metadataPath, summaryPath, zipPath, zipBytes, zipParts };
 }
 
 export async function readHar(dir: string): Promise<Har> {
@@ -298,6 +342,23 @@ export function buildSummaryMarkdown(har: Har, meta: RecordingMetadata, cookies:
   lines.push("   (sono presenti anche gli http-only, normalmente persi dagli exporter).");
   lines.push("3. Le richieste di autenticazione sono elencate sopra: replicale nell'ordine mostrato.");
   lines.push("4. `metadata.json` riporta checkpoint, host e annotazioni utili al replay.");
+  lines.push("");
+
+  lines.push("## Trasferimento (file grande)");
+  lines.push("");
+  lines.push("L'HAR completo può essere molto grande. Il pacchetto è lo `*.zip` in questa");
+  lines.push("cartella; se supera **20 MB** (limite di molti canali di upload) viene diviso in");
+  lines.push("parti numerate `*.zip.001`, `*.zip.002`, … (ciascuna ≤ 20 MB).");
+  lines.push("");
+  lines.push("Per passarlo: invia **tutte** le parti, poi **ricostruisci PRIMA di aprire l'HAR**:");
+  lines.push("");
+  lines.push("```bash");
+  lines.push("cat *.zip.*  > bundle.zip      # rejoin in ordine numerico");
+  lines.push("unzip bundle.zip              # estrae session.har e gli altri file");
+  lines.push("```");
+  lines.push("");
+  lines.push("Windows (PowerShell): `cmd /c copy /b parte1+parte2+... bundle.zip`.");
+  lines.push("Tieni le parti nell'ordine dei numeri; non aprire una singola parte da sola.");
   lines.push("");
 
   if (meta.notes.length) {
