@@ -24,22 +24,48 @@ falls back to Playwright's Chromium. To force/install the latter:
 npm run install:browser   # playwright install chromium
 ```
 
-Register the server in your MCP client (Claude Desktop / Claude Code):
+## Install as an MCP server
+
+Register the built server (`dist/index.js`) with your MCP client. Use an
+**absolute path** for both `node` and the script — MCP clients often launch with a
+minimal environment. Find your node path with `which node` (e.g. `/opt/homebrew/bin/node`).
+
+### Claude Code (CLI)
+
+```bash
+claude mcp add har-recorder -s user -- /opt/homebrew/bin/node /absolute/path/to/har-recorder-mcp/dist/index.js
+```
+
+- `-s user` → available in every project. Use `-s local` for the current project only,
+  or `-s project` to share it via a committed `.mcp.json`.
+- Verify with `claude mcp list` (should show `har-recorder … ✔ Connected`).
+- A newly added server is loaded in the **next** Claude Code session (restart/reconnect).
+
+### Claude Desktop (JSON)
+
+Edit `claude_desktop_config.json` (macOS: `~/Library/Application Support/Claude/`,
+Windows: `%APPDATA%\Claude\`) and add an entry under `mcpServers`:
 
 ```json
 {
   "mcpServers": {
     "har-recorder": {
-      "command": "node",
+      "command": "/opt/homebrew/bin/node",
       "args": ["/absolute/path/to/har-recorder-mcp/dist/index.js"],
-      "env": { "HAR_RECORDER_ROOT": "/path/to/your/project" }
+      "env": {
+        "HAR_RECORDER_ROOT": "/path/to/recordings",
+        "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+      }
     }
   }
 }
 ```
 
+Then **restart Claude Desktop** to load it.
+
 `HAR_RECORDER_ROOT` decides where `.recording/` is created (default: the client's
-cwd). `HAR_RECORDER_HEADLESS=1` forces headless mode (handy for CI/tests).
+cwd — set it explicitly for Desktop, whose cwd is unpredictable).
+`HAR_RECORDER_HEADLESS=1` forces headless mode (handy for CI/tests).
 
 ### Attach mode (record an already-open browser)
 
