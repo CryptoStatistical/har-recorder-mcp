@@ -303,36 +303,86 @@ export interface RequestSummary {
   responseBytes: number;
   hasBody: boolean;
   requestId?: string;
+  webSocketFrameCount?: number;
+  webSocketTruncated?: boolean;
 }
 
-export function summarizeRequests(har: Har, filter: RequestFilter = {}): { total: number; matched: number; requests: RequestSummary[] } {
-  const all = har.log.entries.map((e, index) => ({ e, index }));
-  const filtered = all.filter(({ e }) => {
-    if (filter.method && e.request.method.toUpperCase() !== filter.method.toUpperCase()) return false;
-    if (filter.status != null && e.response.status !== filter.status) return false;
-    if (filter.urlContains && !e.request.url.toLowerCase().includes(filter.urlContains.toLowerCase())) return false;
-    if (filter.mimeType && !(e.response.content.mimeType ?? "").toLowerCase().includes(filter.mimeType.toLowerCase())) return false;
-    if (filter.resourceType && (e._resourceType ?? "").toLowerCase() !== filter.resourceType.toLowerCase()) return false;
-    return true;
-  });
+export interface RequestSummaryResult {
+  total: number;
+  matched: number;
+  requests: RequestSummary[];
+  resourceTypes: string[];
+  webSocketCount: number;
+  webSocketFrameCount: number;
+}
+
+function summarizeEntry(e: HarEntry, index: number): RequestSummary {
+  const wsFrameCount = e._webSocketMessages?.length ?? 0;
+  return {
+    index,
+    method: e.request.method,
+    status: e.response.status,
+    url: e.request.url,
+    resourceType: e._resourceType,
+    mimeType: e.response.content.mimeType,
+    responseBytes: e.response.bodySize,
+    hasBody: e.response.content.text != null,
+    requestId: e._requestId,
+    ...(e._webSocketMessages ? { webSocketFrameCount: wsFrameCount } : {}),
+    ...(e._webSocketMessagesTruncated ? { webSocketTruncated: true } : {}),
+  };
+}
+
+export function summarizeRequests(har: Har, filter: RequestFilter = {}): RequestSummaryResult {
   const offset = filter.offset ?? 0;
   const limit = filter.limit ?? 100;
-  const page = filtered.slice(offset, offset + limit);
+  const method = filter.method?.toUpperCase();
+  const urlNeedle = filter.urlContains?.toLowerCase();
+  const mimeNeedle = filter.mimeType?.toLowerCase();
+  const resourceType = filter.resourceType?.toLowerCase();
+  const resourceTypes = new Set<string>();
+  let matched = 0;
+  let webSocketCount = 0;
+  let webSocketFrameCount = 0;
+  const requests: RequestSummary[] = [];
+
+  for (let index = 0; index < har.log.entries.length; index++) {
+    const e = har.log.entries[index];
+    if (e._resourceType) resourceTypes.add(e._resourceType);
+    if (e._webSocketMessages) {
+      webSocketCount++;
+      webSocketFrameCount += e._webSocketMessages.length;
+    }
+    if (method && e.request.method.toUpperCase() !== method) continue;
+    if (filter.status != null && e.response.status !== filter.status) continue;
+    if (urlNeedle && !e.request.url.toLowerCase().includes(urlNeedle)) continue;
+    if (mimeNeedle && !(e.response.content.mimeType ?? "").toLowerCase().includes(mimeNeedle)) continue;
+    if (resourceType && (e._resourceType ?? "").toLowerCase() !== resourceType) continue;
+
+    if (matched >= offset && requests.length < limit) requests.push(summarizeEntry(e, index));
+    matched++;
+  }
+
   return {
     total: har.log.entries.length,
-    matched: filtered.length,
-    requests: page.map(({ e, index }) => ({
-      index,
-      method: e.request.method,
-      status: e.response.status,
-      url: e.request.url,
-      resourceType: e._resourceType,
-      mimeType: e.response.content.mimeType,
-      responseBytes: e.response.bodySize,
-      hasBody: e.response.content.text != null,
-      requestId: e._requestId,
-    })),
+    matched,
+    requests,
+    resourceTypes: [...resourceTypes].sort(),
+    webSocketCount,
+    webSocketFrameCount,
   };
+}
+
+export function webSocketStats(har: Har): { webSocketCount: number; webSocketFrameCount: number } {
+  let webSocketCount = 0;
+  let webSocketFrameCount = 0;
+  for (const e of har.log.entries) {
+    if (e._webSocketMessages) {
+      webSocketCount++;
+      webSocketFrameCount += e._webSocketMessages.length;
+    }
+  }
+  return { webSocketCount, webSocketFrameCount };
 }
 
 /**

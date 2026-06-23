@@ -7,8 +7,8 @@ import { persistentProfileDir, recordingRoot } from "./config.js";
 import { CaptureStore } from "./capture.js";
 import type { HarCookie } from "./capture.js";
 import { browserWsFromPort, CdpCaptureCoordinator, RawCdp, readDevtoolsWs } from "./cdp.js";
-import { buildHar, cookiesFromHar, selectEntry, summarizeRequests } from "./har.js";
-import type { Har, HarEntry, RequestFilter, RequestSummary } from "./har.js";
+import { buildHar, cookiesFromHar, selectEntry, summarizeRequests, webSocketStats } from "./har.js";
+import type { Har, HarEntry, RequestFilter, RequestSummaryResult } from "./har.js";
 import { log, logError } from "./log.js";
 import { deriveRecordingName, hostSlug, timestamp } from "./naming.js";
 import {
@@ -224,6 +224,8 @@ export class RecordingManager {
       startedAt: session.startedAt.toISOString(),
       stoppedAt: session.stoppedAt?.toISOString(),
       requestCount,
+      webSocketCount: session.store.webSocketCount || undefined,
+      webSocketFrameCount: session.store.webSocketFrameCount || undefined,
       notes: session.notes.length ? session.notes : undefined,
     };
   }
@@ -256,6 +258,8 @@ export class RecordingManager {
         startedAt: s.startedAt.toISOString(),
         durationMs: Date.now() - s.startedAt.getTime(),
         requestCount: s.store.requestCount,
+        webSocketCount: s.store.webSocketCount,
+        webSocketFrameCount: s.store.webSocketFrameCount,
         inflight: s.store.inflight.size,
         lastRequestUrl: s.store.lastRequestUrl(),
         targets: s.store.pages.map((p) => ({ id: p.id, type: p.type, title: p.title, url: p.url })),
@@ -330,6 +334,7 @@ export class RecordingManager {
     const httpOnlyCount = cookies.filter((c) => c.httpOnly).length;
     const durationMs = s.stoppedAt.getTime() - s.startedAt.getTime();
     const lastTitle = titles[titles.length - 1];
+    const wsStats = webSocketStats(har);
 
     const metadata: RecordingMetadata = {
       id: s.id,
@@ -343,6 +348,8 @@ export class RecordingManager {
       stoppedAt: s.stoppedAt.toISOString(),
       durationMs,
       requestCount: har.log.entries.length,
+      webSocketCount: wsStats.webSocketCount,
+      webSocketFrameCount: wsStats.webSocketFrameCount,
       cookieCount: cookies.length,
       httpOnlyCookieCount: httpOnlyCount,
       hosts,
@@ -372,9 +379,13 @@ export class RecordingManager {
       ...this.indexEntryFor(s, har.log.entries.length, dirName),
       title: lastTitle,
       cookieCount: cookies.length,
+      webSocketCount: wsStats.webSocketCount || undefined,
+      webSocketFrameCount: wsStats.webSocketFrameCount || undefined,
     });
 
-    log(`stopped [${s.id}] → ${dirName} (${har.log.entries.length} req, ${cookies.length} cookies)`);
+    log(
+      `stopped [${s.id}] → ${dirName} (${har.log.entries.length} req, ${cookies.length} cookies, ${wsStats.webSocketFrameCount} ws frames)`,
+    );
 
     const split = artifacts.zipParts.length > 0;
     const zipMB = (artifacts.zipBytes / (1024 * 1024)).toFixed(1);
@@ -403,6 +414,8 @@ export class RecordingManager {
       name: dirName,
       status: "stopped",
       requestCount: har.log.entries.length,
+      webSocketCount: wsStats.webSocketCount,
+      webSocketFrameCount: wsStats.webSocketFrameCount,
       cookieCount: cookies.length,
       httpOnlyCookieCount: httpOnlyCount,
       targetsCaptured: s.store.pages.length,
@@ -488,6 +501,8 @@ export class RecordingManager {
           stoppedAt: e.stoppedAt,
           requestCount: e.requestCount,
           cookieCount: e.cookieCount,
+          webSocketCount: e.webSocketCount,
+          webSocketFrameCount: e.webSocketFrameCount,
         })),
     };
   }
@@ -495,7 +510,7 @@ export class RecordingManager {
   async listRequests(
     id: string,
     filter: RequestFilter,
-  ): Promise<{ total: number; matched: number; requests: RequestSummary[]; live: boolean }> {
+  ): Promise<RequestSummaryResult & { live: boolean }> {
     const { har, live } = await this.resolveHar(id);
     return { ...summarizeRequests(har, filter), live };
   }

@@ -122,6 +122,7 @@ function renderRecordings() {
       el("div", { class: "ri-sub", text: (r.host || hostOf(r.url) || "—") + " · " + fmtDate(r.startedAt) }),
       el("div", { class: "ri-stats" }, [
         el("span", { text: (r.requestCount ?? 0) + " req" }),
+        r.webSocketFrameCount ? el("span", { text: r.webSocketFrameCount + " ws frames" }) : null,
         el("span", { text: (r.cookieCount ?? 0) + " cookies" }),
       ]),
     ]);
@@ -166,6 +167,8 @@ function renderHeader() {
   const add = (n) => badges.appendChild(n);
   if (m.live) add(el("span", { class: "badge rec" }, [el("b", { text: "REC" })]));
   add(badgeKV("requests", m.requestCount));
+  if (m.webSocketCount) add(badgeKV("websockets", m.webSocketCount));
+  if (m.webSocketFrameCount) add(badgeKV("ws frames", m.webSocketFrameCount));
   if (m.cookieCount != null) add(badgeKV("cookies", m.cookieCount));
   if (m.httpOnlyCookieCount) add(badgeKV("http-only", m.httpOnlyCookieCount));
   add(badgeKV("duration", fmtDur(m.durationMs)));
@@ -187,6 +190,8 @@ function renderOverview() {
     card("Initial URL", m.url || "—", true),
     card("Browser", m.browser ? m.browser.name + " " + m.browser.version : "—", true),
     card("Response bodies", m.captureBodies ? "yes" : "no"),
+    card("WebSockets", m.webSocketCount ?? 0),
+    card("WS frames", m.webSocketFrameCount ?? 0),
     card("Started", fmtDate(m.startedAt), true),
     card("Stopped", m.live ? "in progress…" : fmtDate(m.stoppedAt), true),
   ]);
@@ -282,24 +287,27 @@ async function loadRequests(initial) {
   params.set("limit", "1000");
 
   body.innerHTML = "";
-  body.appendChild(el("tr", {}, el("td", { colspan: "7", class: "loading", text: "Loading…" })));
+  body.appendChild(el("tr", {}, el("td", { colspan: "8", class: "loading", text: "Loading…" })));
   try {
     const data = await getJSON("/api/recordings/" + encodeURIComponent(state.selected) + "/requests?" + params);
-    if (initial) populateRequestFilters(data.requests);
+    if (initial) populateRequestFilters(data);
     renderRequests(data);
     state.loaded.requests = true;
   } catch (err) {
     body.innerHTML = "";
-    body.appendChild(el("tr", {}, el("td", { colspan: "7", class: "err", text: "Error: " + err.message })));
+    body.appendChild(el("tr", {}, el("td", { colspan: "8", class: "err", text: "Error: " + err.message })));
   }
 }
 
-function populateRequestFilters(rows) {
+function populateRequestFilters(data) {
   const mSel = $("#f-method");
   if (mSel.options.length <= 1) for (const m of METHODS) mSel.appendChild(el("option", { value: m, text: m }));
   const tSel = $("#f-type");
   if (tSel.options.length <= 1) {
-    const types = [...new Set(rows.map((r) => r.resourceType).filter(Boolean))].sort();
+    const rows = data.requests || [];
+    const types = (data.resourceTypes && data.resourceTypes.length)
+      ? data.resourceTypes
+      : [...new Set(rows.map((r) => r.resourceType).filter(Boolean))].sort();
     for (const t of types) tSel.appendChild(el("option", { value: t, text: t }));
   }
 }
@@ -307,9 +315,10 @@ function populateRequestFilters(rows) {
 function renderRequests(data) {
   const body = $("#req-body");
   body.innerHTML = "";
-  $("#req-count").textContent = data.matched + " / " + data.total + (data.matched > data.requests.length ? "  (showing " + data.requests.length + ")" : "");
+  const wsText = data.webSocketFrameCount ? " · " + data.webSocketCount + " WS / " + data.webSocketFrameCount + " frames" : "";
+  $("#req-count").textContent = data.matched + " / " + data.total + (data.matched > data.requests.length ? "  (showing " + data.requests.length + ")" : "") + wsText;
   if (!data.requests.length) {
-    body.appendChild(el("tr", {}, el("td", { colspan: "7", class: "muted", text: "No requests." })));
+    body.appendChild(el("tr", {}, el("td", { colspan: "8", class: "muted", text: "No requests." })));
     return;
   }
   for (const r of data.requests) {
@@ -319,6 +328,7 @@ function renderRequests(data) {
       el("td", {}, el("span", { class: "method method-" + r.method, text: r.method })),
       el("td", {}, el("span", { class: statusClass(r.status), text: String(r.status || "—") })),
       el("td", {}, el("span", { class: "tag" + (isWs ? " ws" : ""), text: r.resourceType || "—" })),
+      el("td", { class: "num cell-mono", text: isWs ? String(r.webSocketFrameCount ?? 0) + (r.webSocketTruncated ? "+" : "") : "—" }),
       el("td", { class: "cell-mono", text: (r.mimeType || "—").split(";")[0] }),
       el("td", { class: "num", text: fmtBytes(r.responseBytes) }),
       el("td", { class: "cell-url", title: r.url, text: r.url }),
@@ -387,6 +397,11 @@ function renderRequestDetail(e, index) {
   }
 
   if (e._webSocketMessages) {
+    content.appendChild(kvSection("WebSocket summary", [
+      ["Frames", e._webSocketMessages.length + (e._webSocketMessagesTruncated ? "+" : "")],
+      ["Sent", e._webSocketMessages.filter((f) => f.type === "send").length],
+      ["Received", e._webSocketMessages.filter((f) => f.type === "receive").length],
+    ]));
     content.appendChild(wsSection(e._webSocketMessages, e._webSocketMessagesTruncated));
   } else {
     const c = e.response.content;
@@ -413,14 +428,25 @@ function kvSection(title, pairs) {
 }
 function headerSection(title, headers) { return kvSection(title + " (" + (headers ? headers.length : 0) + ")", (headers || []).map((h) => [h.name, h.value])); }
 function bodySection(title, text) { return el("div", { class: "kv-section" }, [el("h4", { text: title }), el("pre", { class: "body-box", text: text })]); }
+function fmtWsTime(t) {
+  if (!Number.isFinite(t)) return "—";
+  const d = new Date(t * 1000);
+  return isNaN(d) ? String(t) : d.toLocaleTimeString();
+}
 function wsSection(frames, truncated) {
   const sect = el("div", { class: "kv-section" }, [el("h4", { text: "WebSocket — " + frames.length + " frames" })]);
-  const box = el("pre", { class: "body-box" });
-  box.textContent = frames.slice(0, 200).map((f) => {
-    const dir = f.type === "send" || f.fromClient ? "->" : "<-";
+  const box = el("div", { class: "ws-frames" });
+  for (const f of frames.slice(0, 200)) {
+    const sent = f.type === "send" || f.fromClient;
+    const dir = sent ? "SEND" : "RECV";
     const data = typeof f.data === "string" ? f.data : JSON.stringify(f.data);
-    return dir + " " + (data.length > 400 ? data.slice(0, 400) + "…" : data);
-  }).join("\n");
+    box.appendChild(el("div", { class: "ws-frame" }, [
+      el("span", { class: "ws-dir " + (sent ? "send" : "recv"), text: dir }),
+      el("span", { class: "ws-time", text: fmtWsTime(f.time) }),
+      el("span", { class: "ws-op", text: "op " + (f.opcode ?? "—") }),
+      el("pre", { class: "ws-data", text: data.length > 2000 ? data.slice(0, 2000) + "\n…(truncated)" : data }),
+    ]));
+  }
   sect.appendChild(box);
   if (truncated || frames.length > 200) sect.appendChild(el("p", { class: "hint", text: "Showing the first " + Math.min(200, frames.length) + " frames." }));
   return sect;
@@ -579,6 +605,7 @@ async function refreshStatus() {
     $("#live-host").textContent = hostOf(s.url || "") || s.label || s.recordingId;
     $("#live-sub").textContent = s.lastRequestUrl || s.url || "(waiting for traffic…)";
     $("#live-reqs").textContent = s.requestCount ?? 0;
+    $("#live-ws").textContent = s.webSocketFrameCount ?? 0;
     $("#live-dur").textContent = fmtDur(s.durationMs);
   } else {
     bar.hidden = true;

@@ -177,6 +177,8 @@ async function handleGet(res: ServerResponse, url: URL): Promise<void> {
         stoppedAt: e.stoppedAt,
         requestCount: e.requestCount,
         cookieCount: e.cookieCount,
+        webSocketCount: e.webSocketCount,
+        webSocketFrameCount: e.webSocketFrameCount,
       }));
     sendJson(res, 200, { root: resolveRoot(), count: recordings.length, activeRecordingId: activeId, recordings });
     return;

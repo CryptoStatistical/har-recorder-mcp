@@ -33,6 +33,8 @@ export interface IndexEntry {
   stoppedAt?: string;
   requestCount: number;
   cookieCount?: number;
+  webSocketCount?: number;
+  webSocketFrameCount?: number;
   notes?: string[];
 }
 
@@ -53,6 +55,8 @@ export interface RecordingMetadata {
   stoppedAt?: string;
   durationMs?: number;
   requestCount: number;
+  webSocketCount?: number;
+  webSocketFrameCount?: number;
   cookieCount: number;
   httpOnlyCookieCount: number;
   hosts: string[];

@@ -199,6 +199,20 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .tag { font-size: 10px; padding: 1px 7px; border-radius: 5px; background: var(--bg-3); border: 1px solid var(--border); color: var(--text-dim); }
 .tag.ws { color: var(--violet); border-color: #3a2a5a; }
 
+.ws-frames { display: flex; flex-direction: column; gap: 8px; max-height: 520px; overflow: auto; }
+.ws-frame {
+  display: grid; grid-template-columns: 56px 86px 54px minmax(0, 1fr); gap: 8px; align-items: start;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+}
+.ws-dir { font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 5px; text-align: center; }
+.ws-dir.send { color: var(--amber); background: rgba(230, 180, 80, 0.12); }
+.ws-dir.recv { color: var(--blue); background: rgba(90, 162, 255, 0.12); }
+.ws-time, .ws-op { color: var(--text-mut); font-family: var(--mono); font-size: 11px; padding-top: 2px; }
+.ws-data {
+  margin: 0; color: var(--text); font-family: var(--mono); font-size: 11.5px; line-height: 1.45;
+  white-space: pre-wrap; word-break: break-word; min-width: 0;
+}
+
 .cookie-table .val { font-family: var(--mono); max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .yes { color: var(--green); font-weight: 700; }
 .no { color: var(--text-mut); }
