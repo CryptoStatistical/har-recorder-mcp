@@ -63,6 +63,26 @@ natural-language prompt — in any language — is enough to invoke them:
 - _"show the POST requests to /api"_ → `list_requests`
 - _"give me the http-only cookies"_ → `get_cookies`
 
+## Prompt menu (guided steps)
+
+Besides the tools, the server exposes **MCP prompts** that show up as a selectable
+menu in the client (Claude Code / Desktop) — a guided workflow you can click
+through instead of remembering the tool order:
+
+| Prompt | What it does |
+|--------|--------------|
+| `guida` | Shows the recommended steps (start → navigate → checkpoint → stop/analyze → close). |
+| `avvia-registrazione` | Starts a recording (optional `sito`, `etichetta`). |
+| `segna-checkpoint` | Marks a checkpoint (`etichetta`). |
+| `ferma-e-analizza` | Stops capture and reconstructs where you went. |
+| `chiudi-browser` | Closes Chrome — saves the HAR first if a recording is still active. |
+
+> ⚠️ Closing the browser while a recording is still **active** discards the unsaved
+> capture (the HAR is never assembled). The `chiudi-browser` and `guida` prompts
+> enforce `stop_recording` **before** `close_browser`, so nothing is lost.
+
+Menu labels are in Italian; the prompt bodies steer Claude through the tools.
+
 ## Workflow
 
 1. Claude → `start_recording(url, label?)` → Chrome opens (headful), capture
